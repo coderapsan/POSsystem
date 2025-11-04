@@ -1,0 +1,107 @@
+{
+    "Starters": [
+        {
+            "id": 1,
+            "name": "Chicken Steam Momos",
+            "description": "Hand-made dumplings filled with minced chicken, onions, ginger and garlic served with chef special sauce.",
+            "portion": "standard",
+            "price": {
+                "small": 0,
+                "large": 6.45
+            },
+            "spicyLevel": "medium",
+            "allergens": [
+                "D",
+                "S"
+            ],
+            "isAvailable": true
+        },
+        {
+            "id": 2,
+            "name": "Chicken Fried Momos",
+            "description": "Hand-made dumplings filled with minced chicken, onions, ginger, garlic and deep fried served with chef special sauce.",
+            "portion": "standard",
+            "price": {
+                "small": 0,
+                "large": 6.95
+            },
+            "spicyLevel": "medium",
+            "allergens": [
+                "D",
+                "S"
+            ],
+            "isAvailable": true
+        },
+        {
+            "id": 3,
+            "name": "Onion Pakora",
+            "description": "Sliced onion mixed with green spices, deep fried and served with mint yoghurt.",
+            "portion": "standard",
+            "price": {
+                "small": 0,
+                "large": 6.45
+            },
+            "spicyLevel": "mild",
+            "allergens": [
+                "M",
+                "E"
+            ],
+            "isAvailable": true
+        }
+    ],
+    "Clay Oven Grilled": [
+        {
+            "id": 13,
+            "name": "Chicken Shashlik",
+            "description": "Cubes of chicken breast marinated with homemade spices, slowly cooked with green peppers, onions and fresh tomatoes in clay oven.",
+            "portion": "standard",
+            "price": {
+                "small": 0,
+                "large": 10.45
+            },
+            "spicyLevel": "medium",
+            "allergens": [
+                "D",
+                "M"
+            ],
+            "isAvailable": true
+        }
+    ],
+    "Vegetables": {
+        "Mains": [
+            {
+                "id": 22,
+                "name": "Mixed Vegetable Curry",
+                "description": "Fresh mixed vegetables cooked with our homemade spices and herbs.",
+                "portion": "standard",
+                "price": {
+                    "small": 0,
+                    "large": 9.95
+                },
+                "spicyLevel": "medium",
+                "allergens": [
+                    "M",
+                    "D"
+                ],
+                "isAvailable": true
+            }
+        ],
+        "Sides": [
+            {
+                "id": 55,
+                "name": "House Black Daal",
+                "description": "Dark, rich, deeply flavoured lentil curry cooked over 12 hours for extra delicacy.",
+                "portion": "standard",
+                "price": {
+                    "small": 0,
+                    "large": 7.95
+                },
+                "spicyLevel": "mild",
+                "allergens": [
+                    "D"
+                ],
+                "isAvailable": true
+            }
+        ]
+    }
+}
