@@ -58,5 +58,47 @@
     ],
     "total": 32.25,
     "shopName": "The MoMos"
+  },
+  {
+    "orderId": "ORD-1762435810245",
+    "timestamp": "2025-11-06T13:30:10.245Z",
+    "orderType": "Take Away",
+    "customer": "Walk-in Customer",
+    "items": [
+      {
+        "id": 29,
+        "name": "Veg Curry 29",
+        "portion": "large",
+        "quantity": 1,
+        "unitPrice": 7.25,
+        "lineTotal": 7.25
+      },
+      {
+        "id": 1,
+        "name": "Chicken Steam Momos",
+        "portion": "large",
+        "quantity": 1,
+        "unitPrice": 6.45,
+        "lineTotal": 6.45
+      },
+      {
+        "id": 3,
+        "name": "Chicken Fried Momos",
+        "portion": "large",
+        "quantity": 3,
+        "unitPrice": 6.95,
+        "lineTotal": 20.85
+      },
+      {
+        "id": 9,
+        "name": "Paneer Chilli",
+        "portion": "large",
+        "quantity": 1,
+        "unitPrice": 7.25,
+        "lineTotal": 7.25
+      }
+    ],
+    "total": 41.8,
+    "shopName": "The MoMos"
   }
 ]
