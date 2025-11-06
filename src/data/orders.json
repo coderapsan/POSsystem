@@ -1,0 +1,62 @@
+[
+  {
+    "orderId": "ORD-1762433625908",
+    "timestamp": "2025-11-06T12:53:45.908Z",
+    "orderType": "Take Away",
+    "customer": "Walk-in Customer",
+    "items": [
+      {
+        "id": 1,
+        "name": "Chicken Steam Momos",
+        "portion": "large",
+        "quantity": 1,
+        "unitPrice": 6.45,
+        "lineTotal": 6.45
+      },
+      {
+        "id": 3,
+        "name": "Onion Pakora",
+        "portion": "large",
+        "quantity": 1,
+        "unitPrice": 6.45,
+        "lineTotal": 6.45
+      },
+      {
+        "id": 13,
+        "name": "Chicken Shashlik",
+        "portion": "large",
+        "quantity": 1,
+        "unitPrice": 10.45,
+        "lineTotal": 10.45
+      }
+    ],
+    "total": 23.35,
+    "shopName": "The MoMos"
+  },
+  {
+    "orderId": "ORD-1762433798096",
+    "timestamp": "2025-11-06T12:56:38.096Z",
+    "orderType": "Dine In",
+    "customer": "Walk-in Customer",
+    "items": [
+      {
+        "id": 1,
+        "name": "Chicken Steam Momos",
+        "portion": "large",
+        "quantity": 1,
+        "unitPrice": 6.45,
+        "lineTotal": 6.45
+      },
+      {
+        "id": 3,
+        "name": "Onion Pakora",
+        "portion": "large",
+        "quantity": 4,
+        "unitPrice": 6.45,
+        "lineTotal": 25.8
+      }
+    ],
+    "total": 32.25,
+    "shopName": "The MoMos"
+  }
+]

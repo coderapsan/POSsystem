@@ -24,6 +24,7 @@
     "react-modal-video": "^2.0.0",
     "react-paginate": "^8.1.4",
     "react-router-dom": "^6.26.2",
+    "react-to-print": "^3.2.0",
     "styled-components": "^5.3.6",
     "swiper": "^8.4.5",
     "yet-another-react-lightbox": "^2.2.5"
