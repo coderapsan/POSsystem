@@ -12,9 +12,8 @@ export default function Order() {
   const [paymentMethod, setPaymentMethod] = useState("Cash");
   const [isPaid, setIsPaid] = useState(false);
   const [selectedItem, setSelectedItem] = useState(null);
-  const [discountPercent, setDiscountPercent] = useState(0);
+  const [discountPercent, setDiscountPercent] = useState("");
 
-  // New: Customer & Order Details
   const [orderType, setOrderType] = useState("Dine In");
   const [customer, setCustomer] = useState({
     name: "",
@@ -87,13 +86,17 @@ export default function Order() {
     setSelectedItem(null);
   };
 
-  // Total + Discount Calculation
   const subtotal = cart.reduce(
     (sum, item) => sum + item.price * item.quantity,
     0
   );
-  const discount = (subtotal * discountPercent) / 100;
-  const total = subtotal - discount;
+
+  const discountValue =
+    discountPercent && !isNaN(discountPercent)
+      ? (subtotal * Number(discountPercent)) / 100
+      : 0;
+
+  const total = subtotal - discountValue;
 
   const handleSubmitOrder = () => {
     if (cart.length === 0) return alert("No items in the order!");
@@ -120,12 +123,30 @@ export default function Order() {
       <html>
         <head>
           <title>Receipt - ${orderNumber}</title>
+          <meta name="viewport" content="width=device-width, initial-scale=1.0" />
           <style>
-            body { font-family: monospace; padding: 10px; }
-            h1 { text-align: center; margin: 5px 0; }
+            body {
+              font-family: monospace;
+              padding: 8px;
+              font-size: 12px;
+              width: 80mm;
+              margin: 0 auto;
+            }
+            h1 {
+              text-align: center;
+              margin-bottom: 4px;
+              font-size: 18px;
+            }
             .center { text-align: center; }
-            .line { border-top: 1px dashed #000; margin: 6px 0; }
-            .total { font-weight: bold; text-align: right; }
+            .line { border-top: 1px dashed #000; margin: 5px 0; }
+            .bold { font-weight: bold; }
+            .total { font-size: 14px; font-weight: bold; text-align: right; }
+            .order-number {
+              font-size: 16px;
+              font-weight: bold;
+              text-align: center;
+              margin: 4px 0;
+            }
           </style>
         </head>
         <body>
@@ -133,7 +154,7 @@ export default function Order() {
           <div class="center">340 Kingston Road, SW20 8LR</div>
           <div class="center">Tel: 0208 123 4567</div>
           <div class="line"></div>
-          <div>Order No: ${orderNumber}</div>
+          <div class="order-number">#${orderNumber}</div>
           <div>Date: ${new Date().toLocaleString()}</div>
           <div>Type: ${orderType}</div>
           ${
@@ -157,23 +178,30 @@ export default function Order() {
             .join("<br/>")}
           <div class="line"></div>
           <div>Subtotal: £${subtotal.toFixed(2)}</div>
-          <div>Discount (${discountPercent}%): -£${discount.toFixed(2)}</div>
+          ${
+            discountValue > 0
+              ? `<div>Discount (${discountPercent}%): -£${discountValue.toFixed(
+                  2
+                )}</div>`
+              : ""
+          }
           <div class="total">Total: £${total.toFixed(2)}</div>
           <div class="line"></div>
-          <div>Payment Method: ${paymentMethod}</div>
+          <div>Payment: ${paymentMethod}</div>
           <div>Status: ${isPaid ? "Paid" : "Pending Cash"}</div>
           <div class="line"></div>
           <div class="center">Thank You! Visit Again</div>
         </body>
       </html>`;
+
     receiptWindow.document.write(receiptContent);
     receiptWindow.print();
     receiptWindow.close();
 
-    // Reset system after printing
+    // Reset for next order
     setCart([]);
     setCustomer({ name: "", phone: "", address: "", postalCode: "" });
-    setDiscountPercent(0);
+    setDiscountPercent("");
     setIsPaid(false);
     setShowReceipt(false);
   };
@@ -360,8 +388,11 @@ export default function Order() {
                   min="0"
                   max="100"
                   value={discountPercent}
-                  onChange={(e) => setDiscountPercent(Number(e.target.value))}
-                  className="border w-16 p-1 rounded text-right"
+                  placeholder="Enter %"
+                  onChange={(e) =>
+                    setDiscountPercent(e.target.value.replace(/[^0-9.]/g, ""))
+                  }
+                  className="border w-20 p-1 rounded text-right"
                 />
               </div>
 
@@ -429,7 +460,7 @@ export default function Order() {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
           <div className="bg-white p-6 rounded-lg w-96 text-center">
             <h3 className="font-bold text-xl mb-2">Receipt</h3>
-            <p>Order No: {orderNumber}</p>
+            <p className="text-lg font-bold text-orange-700">#{orderNumber}</p>
             <p>Date: {new Date().toLocaleString()}</p>
             <p>Type: {orderType}</p>
             {customer.name && <p>Name: {customer.name}</p>}
@@ -447,23 +478,26 @@ export default function Order() {
             ))}
             <div className="border-t my-2"></div>
             <p>Subtotal: £{subtotal.toFixed(2)}</p>
-            <p>Discount: £{discount.toFixed(2)}</p>
+            {discountValue > 0 && (
+              <p>Discount: £{discountValue.toFixed(2)}</p>
+            )}
             <p className="font-bold">Total: £{total.toFixed(2)}</p>
             <p>Payment: {paymentMethod}</p>
             <p>Status: {isPaid ? "Paid" : "Pending Cash"}</p>
-            <div className="border-t my-2"></div>
-            <button
-              className="bg-orange-600 text-white px-4 py-2 rounded mr-2"
-              onClick={handlePrintReceipt}
-            >
-              Print & Submit
-            </button>
-            <button
-              className="bg-gray-400 text-white px-4 py-2 rounded"
-              onClick={() => setShowReceipt(false)}
-            >
-              Cancel
-            </button>
+            <div className="mt-3 flex gap-3 justify-center">
+              <button
+                onClick={handlePrintReceipt}
+                className="bg-orange-600 text-white px-4 py-2 rounded"
+              >
+                Print & Reset
+              </button>
+              <button
+                onClick={() => setShowReceipt(false)}
+                className="bg-gray-400 text-white px-4 py-2 rounded"
+              >
+                Cancel
+              </button>
+            </div>
           </div>
         </div>
       )}
