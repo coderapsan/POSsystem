@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import Layout from "../layout/Layout";
 import menuData from "../data/momos.json";
+import Navbar from "../components/common/Navbar";
 
 export default function Order() {
   const [menu, setMenu] = useState({});
@@ -21,6 +22,9 @@ export default function Order() {
     address: "",
     postalCode: "",
   });
+
+  const [generalItemName, setGeneralItemName] = useState("");
+  const [generalItemPrice, setGeneralItemPrice] = useState("");
 
   // Load menu data
   useEffect(() => {
@@ -231,6 +235,28 @@ export default function Order() {
     setShowReceipt(false);
   };
 
+  const handleAddGeneralItem = () => {
+    const name = generalItemName.trim() || "General Item";
+    const price = parseFloat(generalItemPrice);
+    if (!price || price <= 0) return alert("Enter a valid price for the item.");
+    setCart([
+      ...cart,
+      {
+        id: `general-${Date.now()}`,
+        name,
+        portion: "custom",
+        quantity: 1,
+        price,
+        description: "Custom item added by user",
+        spicyLevel: "",
+        allergens: [],
+        isAvailable: true,
+      },
+    ]);
+    setGeneralItemName("");
+    setGeneralItemPrice("");
+  };
+
   const renderItems = (items) =>
     items.map((item) => (
       <div
@@ -284,7 +310,17 @@ export default function Order() {
 
   return (
     <div>
+      <Navbar />
       <div className="flex flex-col md:flex-row gap-4 p-4">
+        {/* Add order history button */}
+        <div className="mb-4">
+          <button
+            className="bg-orange-700 text-white px-4 py-2 rounded shadow"
+            onClick={() => (window.location.href = "/order-history")}
+          >
+            View Order History
+          </button>
+        </div>
         {/* Left: Menu */}
         <div className="flex-1 overflow-y-auto">
           <h2 className="text-2xl font-bold text-orange-700 mb-3">
@@ -351,11 +387,12 @@ export default function Order() {
           )}
         </div>
 
-        {/* Right: Cart */}
+        {/* Right: Cart - static on desktop */}
         <div
-          className={`fixed md:static bottom-0 right-0 w-full md:w-1/3 bg-white border-t md:border rounded-t-2xl md:rounded-lg shadow-xl transition-all duration-300 ${
+          className={`md:sticky md:top-20 fixed md:static bottom-0 right-0 w-full md:w-1/3 bg-white border-t md:border rounded-t-2xl md:rounded-lg shadow-xl transition-all duration-300 ${
             showCart ? "translate-y-0" : "translate-y-[85%] md:translate-y-0"
           }`}
+          style={{ maxHeight: "90vh", overflowY: "auto" }}
         >
           <div className="flex justify-between items-center p-3 bg-orange-600 text-white rounded-t-2xl md:rounded-t-lg">
             <h3 className="font-bold">Cart</h3>
@@ -368,6 +405,31 @@ export default function Order() {
           </div>
 
           <div className="p-3 max-h-[250px] overflow-y-auto">
+            {/* General item input */}
+            <div className="mb-3 flex gap-2 items-center">
+              <input
+                type="text"
+                value={generalItemName}
+                onChange={(e) => setGeneralItemName(e.target.value)}
+                placeholder="General Item Name"
+                className="border p-1 rounded w-1/2"
+              />
+              <input
+                type="number"
+                min="0.01"
+                step="0.01"
+                value={generalItemPrice}
+                onChange={(e) => setGeneralItemPrice(e.target.value.replace(/[^0-9.]/g, ""))}
+                placeholder="Price (£)"
+                className="border p-1 rounded w-1/4 text-right"
+              />
+              <button
+                className="bg-orange-600 text-white px-2 py-1 rounded"
+                onClick={handleAddGeneralItem}
+              >
+                Add
+              </button>
+            </div>
             {cart.length === 0 ? (
               <p className="text-gray-400 text-sm">Cart is empty</p>
             ) : (
@@ -446,7 +508,7 @@ export default function Order() {
 
               <button
                 className="w-full bg-orange-600 text-white py-2 rounded"
-                onClick={handleSubmitOrder} 
+                onClick={handleSubmitOrder}
               >
                 Submit Order
               </button>
