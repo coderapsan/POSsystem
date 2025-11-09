@@ -12,6 +12,9 @@ export default function Navbar() {
         <Link href="/order-history">
           <span className="hover:bg-orange-800 px-3 py-2 rounded transition cursor-pointer">Order History</span>
         </Link>
+        <Link href="/admin">
+          <span className="hover:bg-orange-800 px-3 py-2 rounded transition cursor-pointer">Admin</span>
+        </Link>
       </div>
     </nav>
   );
