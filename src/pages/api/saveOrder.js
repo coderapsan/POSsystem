@@ -9,14 +9,20 @@ export default async function handler(req, res) {
       const orderData = req.body;
 
       const newOrder = new Order({
+        orderId: orderData.orderId,
         items: orderData.items,
         total: orderData.total,
         customerName: orderData.customerName || "",
+        customer: orderData.customer || {},
+        paymentMethod: orderData.paymentMethod || "",
+        isPaid: orderData.isPaid || false,
+        discountPercent: orderData.discountPercent || "",
+        orderType: orderData.orderType || "",
       });
-console.log("Saving new order:", newOrder);
+      console.log("Saving new order:", newOrder);
       await newOrder.save();
 
-      return res.status(200).json({ success: true, orderId: newOrder._id });
+      return res.status(200).json({ success: true, orderId: newOrder.orderId });
     } catch (error) {
       console.error("Error saving order:", error);
       return res.status(500).json({ success: false, error: error.message });

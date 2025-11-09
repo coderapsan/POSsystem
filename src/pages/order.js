@@ -98,14 +98,22 @@ export default function Order() {
 
   const total = subtotal - discountValue;
 
+  function generateOrderId() {
+    // Generates a random 5-digit number as a string, padded if needed
+    return Math.floor(10000 + Math.random() * 90000).toString();
+  }
+
   const handleSubmitOrder = async () => {
     if (cart.length === 0) return alert("No items in the order!");
 
+    const orderId = generateOrderId();
     const orderData = {
-      orderNumber: `ORD-${Date.now().toString().slice(-6)}`,
+      orderId,
+      orderNumber: orderId,
       timestamp: new Date().toLocaleString(),
       orderType,
       customer,
+      customerName: customer.name,
       paymentMethod,
       isPaid,
       discountPercent,
@@ -123,7 +131,7 @@ export default function Order() {
       });
       const result = await response.json();
       if (result.success) {
-        setOrderNumber(result.orderId || orderData.orderNumber);
+        setOrderNumber(orderId);
         setShowReceipt(true);
         console.log("🧾 Order saved:", result);
       } else {
