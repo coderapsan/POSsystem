@@ -98,7 +98,7 @@ export default function Order() {
 
   const total = subtotal - discountValue;
 
-  const handleSubmitOrder = () => {
+  const handleSubmitOrder = async () => {
     if (cart.length === 0) return alert("No items in the order!");
 
     const orderData = {
@@ -112,9 +112,26 @@ export default function Order() {
       items: cart,
       total,
     };
-    setOrderNumber(orderData.orderNumber);
-    setShowReceipt(true);
-    console.log("🧾 Order saved:", orderData);
+
+    try {
+      const response = await fetch("/api/saveOrder", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(orderData),
+      });
+      const result = await response.json();
+      if (result.success) {
+        setOrderNumber(result.orderId || orderData.orderNumber);
+        setShowReceipt(true);
+        console.log("🧾 Order saved:", result);
+      } else {
+        alert("Failed to save order: " + (result.error || "Unknown error"));
+      }
+    } catch (error) {
+      alert("Error saving order: " + error.message);
+    }
   };
 
   const handlePrintReceipt = () => {
@@ -421,7 +438,7 @@ export default function Order() {
 
               <button
                 className="w-full bg-orange-600 text-white py-2 rounded"
-                onClick={handleSubmitOrder}
+                onClick={handleSubmitOrder} 
               >
                 Submit Order
               </button>

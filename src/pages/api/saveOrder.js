@@ -1,5 +1,5 @@
-import connectToDatabase from "@/lib/mongodb";
-import Order from "@/models/Order";
+import connectToDatabase from "../../lib/mongodb";
+import Order from "../../models/Order";
 
 export default async function handler(req, res) {
   if (req.method === "POST") {
@@ -13,7 +13,7 @@ export default async function handler(req, res) {
         total: orderData.total,
         customerName: orderData.customerName || "",
       });
-
+console.log("Saving new order:", newOrder);
       await newOrder.save();
 
       return res.status(200).json({ success: true, orderId: newOrder._id });
