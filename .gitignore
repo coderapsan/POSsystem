@@ -1,7 +1,7 @@
 node_modules
 .next
 .env.local
-.launch.json
+
 .env
 .env.development.local
 .env.test.local
