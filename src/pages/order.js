@@ -389,7 +389,7 @@ export default function Order() {
 
         {/* Right: Cart - static on desktop */}
         <div
-          className={`md:sticky md:top-20 fixed md:static bottom-0 right-0 w-full md:w-1/3 bg-white border-t md:border rounded-t-2xl md:rounded-lg shadow-xl transition-all duration-300 ${
+          className={`md:sticky md:top-20 fixed bottom-0 right-0 w-full md:w-1/3 bg-white border-t md:border rounded-t-2xl md:rounded-lg shadow-xl transition-all duration-300 ${
             showCart ? "translate-y-0" : "translate-y-[85%] md:translate-y-0"
           }`}
           style={{ maxHeight: "90vh", overflowY: "auto" }}
