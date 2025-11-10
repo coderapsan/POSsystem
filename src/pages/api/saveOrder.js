@@ -18,6 +18,8 @@ export default async function handler(req, res) {
         isPaid: orderData.isPaid || false,
         discountPercent: orderData.discountPercent || "",
         orderType: orderData.orderType || "",
+        status: orderData.status || (orderData.source === "customer" ? "pending" : "accepted"),
+        source: orderData.source || "pos",
       });
       console.log("Saving new order:", newOrder);
       await newOrder.save();
@@ -28,10 +30,13 @@ export default async function handler(req, res) {
       return res.status(500).json({ success: false, error: error.message });
     }
   } else if (req.method === "GET") {
-    // Optional: fetch all orders
     try {
       await connectToDatabase();
-      const orders = await Order.find().sort({ createdAt: -1 });
+      const { source, status } = req.query;
+      let query = {};
+      if (source) query.source = source;
+      if (status) query.status = status;
+      const orders = await Order.find(query).sort({ createdAt: -1 });
       return res.status(200).json({ success: true, orders });
     } catch (error) {
       console.error("Error fetching orders:", error);

@@ -12,6 +12,8 @@ const OrderSchema = new mongoose.Schema(
     discountPercent: { type: String },
     orderType: { type: String },
     createdAt: { type: Date, default: Date.now },
+    status: { type: String, default: "pending" }, // pending, accepted, completed
+    source: { type: String }, // 'customer' or 'pos'
   },
   { collection: "orders" }
 );

@@ -33,7 +33,7 @@
       "portion": "standard",
       "price": {
         "small": 0,
-        "large": 6.25
+        "large": 6.45
       },
       "spicyLevel": "mild",
       "allergens": ["M", "E"],
@@ -111,7 +111,7 @@
       "portion": "standard",
       "price": {
         "small": 0,
-        "large": 6.95
+        "large": 7.25
       },
       "spicyLevel": "medium",
       "allergens": ["D"],
@@ -179,7 +179,7 @@
       "portion": "standard",
       "price": {
         "small": 0,
-        "large": 10.45
+        "large": 10.95
       },
       "spicyLevel": "medium",
       "allergens": ["D", "M"],
@@ -192,7 +192,7 @@
       "portion": "standard",
       "price": {
         "small": 0,
-        "large": 10.95
+        "large": 8.95
       },
       "spicyLevel": "medium",
       "allergens": ["D", "M"],
@@ -205,7 +205,7 @@
       "portion": "standard",
       "price": {
         "small": 0,
-        "large": 10.95
+        "large": 8.95
       },
       "spicyLevel": "medium",
       "allergens": ["D", "M"],
@@ -218,7 +218,7 @@
       "portion": "standard",
       "price": {
         "small": 0,
-        "large": 10.95
+        "large": 8.95
       },
       "spicyLevel": "medium",
       "allergens": ["D"],
@@ -231,7 +231,7 @@
       "portion": "standard",
       "price": {
         "small": 0,
-        "large": 14.95
+        "large": 13.95
       },
       "spicyLevel": "medium",
       "allergens": ["D", "S", "M"],
@@ -244,7 +244,7 @@
       "portion": "standard",
       "price": {
         "small": 0,
-        "large": 9.95
+        "large": 10.25
       },
       "spicyLevel": "medium",
       "allergens": ["D", "M"],
@@ -257,7 +257,7 @@
       "portion": "standard",
       "price": {
         "small": 0,
-        "large": 14.95
+        "large": 13.95
       },
       "spicyLevel": "medium",
       "allergens": ["D", "S", "M"],
@@ -270,7 +270,7 @@
       "portion": "standard",
       "price": {
         "small": 0,
-        "large": 10.95
+        "large": 8.45
       },
       "spicyLevel": "medium",
       "allergens": ["D"],
@@ -419,7 +419,7 @@
       "portion": "standard",
       "price": {
         "small": 0,
-        "large": 14.95
+        "large": 13.45
       },
       "spicyLevel": "medium",
       "allergens": ["S", "D", "N", "M"],
@@ -432,7 +432,7 @@
       "portion": "standard",
       "price": {
         "small": 0,
-        "large": 14.95
+        "large": 13.45
       },
       "spicyLevel": "hot",
       "allergens": ["S", "D", "M"],
@@ -445,7 +445,7 @@
       "portion": "standard",
       "price": {
         "small": 0,
-        "large": 14.95
+        "large": 13.45
       },
       "spicyLevel": "medium",
       "allergens": ["S", "D", "M"],
@@ -458,7 +458,7 @@
       "portion": "standard",
       "price": {
         "small": 0,
-        "large": 14.95
+        "large": 13.45
       },
       "spicyLevel": "medium",
       "allergens": ["S", "D", "M"],
@@ -471,7 +471,7 @@
       "portion": "standard",
       "price": {
         "small": 0,
-        "large": 14.95
+        "large": 13.45
       },
       "spicyLevel": "mild",
       "allergens": ["S", "D", "M"],
@@ -484,7 +484,7 @@
       "portion": "standard",
       "price": {
         "small": 0,
-        "large": 14.95
+        "large": 13.45
       },
       "spicyLevel": "medium",
       "allergens": ["S", "D", "M"],
@@ -497,7 +497,7 @@
       "portion": "standard",
       "price": {
         "small": 0,
-        "large": 14.95
+        "large": 13.45
       },
       "spicyLevel": "hot",
       "allergens": ["S", "D", "M"],
@@ -510,7 +510,7 @@
       "portion": "standard",
       "price": {
         "small": 0,
-        "large": 12.45
+        "large": 11.45
       },
       "spicyLevel": "medium",
       "allergens": ["S", "D", "G", "N", "M"],
@@ -523,7 +523,7 @@
       "portion": "standard",
       "price": {
         "small": 0,
-        "large": 12.45
+        "large": 11.45
       },
       "spicyLevel": "medium",
       "allergens": ["S", "D", "M"],
@@ -711,7 +711,7 @@
       "portion": "standard",
       "price": {
         "small": 0,
-        "large": 12.45
+        "large": 11.95
       },
       "spicyLevel": "medium",
       "allergens": ["D", "M"],
@@ -724,7 +724,7 @@
       "portion": "standard",
       "price": {
         "small": 0,
-        "large": 12.45
+        "large": 11.95
       },
       "spicyLevel": "medium",
       "allergens": ["D"],
@@ -737,7 +737,7 @@
       "portion": "standard",
       "price": {
         "small": 0,
-        "large": 12.45
+        "large": 11.95
       },
       "spicyLevel": "medium",
       "allergens": ["D"],
@@ -750,7 +750,7 @@
       "portion": "standard",
       "price": {
         "small": 0,
-        "large":  12.45
+        "large": 11.95
       },
       "spicyLevel": "medium",
       "allergens": ["N", "D", "M"],
@@ -763,7 +763,7 @@
       "portion": "standard",
       "price": {
         "small": 0,
-        "large":  12.45
+        "large": 11.95
       },
       "spicyLevel": "medium",
       "allergens": ["D"],
@@ -776,7 +776,7 @@
       "portion": "standard",
       "price": {
         "small": 0,
-        "large":  12.45
+        "large": 11.95
       },
       "spicyLevel": "medium",
       "allergens": ["D"],
@@ -789,7 +789,7 @@
       "portion": "standard",
       "price": {
         "small": 0,
-        "large":  12.45
+        "large": 11.95
       },
       "spicyLevel": "hot",
       "allergens": ["D", "M"],
@@ -802,7 +802,7 @@
       "portion": "standard",
       "price": {
         "small": 0,
-        "large":  12.45
+        "large": 11.95
       },
       "spicyLevel": "mild",
       "allergens": ["N", "D", "M"],
@@ -815,7 +815,7 @@
       "portion": "standard",
       "price": {
         "small": 0,
-        "large":  12.45
+        "large": 11.95
       },
       "spicyLevel": "hot",
       "allergens": ["D", "M"],
@@ -870,7 +870,7 @@
       "portion": "standard",
       "price": {
         "small": 0,
-        "large": 14.95
+        "large": 11.95
       },
       "spicyLevel": "medium",
       "allergens": ["M", "D"],

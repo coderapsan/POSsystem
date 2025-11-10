@@ -26,9 +26,28 @@ export default function Order() {
   const [generalItemName, setGeneralItemName] = useState("");
   const [generalItemPrice, setGeneralItemPrice] = useState("");
 
+  const [incomingOnlineOrders, setIncomingOnlineOrders] = useState([]);
+  const [showOnlineOrderModal, setShowOnlineOrderModal] = useState(false);
+
   // Load menu data
   useEffect(() => {
     setMenu(menuData);
+  }, []);
+
+  // Poll for new online orders every 5 seconds
+  useEffect(() => {
+    const interval = setInterval(async () => {
+      const res = await fetch("/api/saveOrder?source=customer&status=pending");
+      const data = await res.json();
+      if (data.orders && data.orders.length > 0) {
+        setIncomingOnlineOrders(data.orders);
+        setShowOnlineOrderModal(true);
+        // Play ringing sound
+        const audio = new Audio("/assets/ringtone.mp3");
+        audio.play();
+      }
+    }, 5000);
+    return () => clearInterval(interval);
   }, []);
 
   const handleCategoryClick = (category) => {
@@ -308,6 +327,20 @@ export default function Order() {
     </div>
   );
 
+  const acceptOnlineOrder = async (orderId) => {
+    await fetch(`/api/saveOrder/accept`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ orderId }),
+    });
+    setIncomingOnlineOrders(
+      incomingOnlineOrders.filter((o) => o.orderId !== orderId)
+    );
+    setShowOnlineOrderModal(false);
+    // Print logic here
+    alert("Order accepted and sent to printer!");
+  };
+
   return (
     <div>
       <Navbar />
@@ -389,7 +422,7 @@ export default function Order() {
 
         {/* Right: Cart - static on desktop */}
         <div
-          className={`md:sticky md:top-20 fixed bottom-0 right-0 w-full md:w-1/3 bg-white border-t md:border rounded-t-2xl md:rounded-lg shadow-xl transition-all duration-300 ${
+          className={`md:sticky md:top-20 fixed md:static bottom-0 right-0 w-full md:w-1/3 bg-white border-t md:border rounded-t-2xl md:rounded-lg shadow-xl transition-all duration-300 ${
             showCart ? "translate-y-0" : "translate-y-[85%] md:translate-y-0"
           }`}
           style={{ maxHeight: "90vh", overflowY: "auto" }}
@@ -419,7 +452,9 @@ export default function Order() {
                 min="0.01"
                 step="0.01"
                 value={generalItemPrice}
-                onChange={(e) => setGeneralItemPrice(e.target.value.replace(/[^0-9.]/g, ""))}
+                onChange={(e) =>
+                  setGeneralItemPrice(e.target.value.replace(/[^0-9.]/g, ""))
+                }
                 placeholder="Price (£)"
                 className="border p-1 rounded w-1/4 text-right"
               />
@@ -588,6 +623,53 @@ export default function Order() {
           </div>
         </div>
       )}
+
+      {/* Online Order Notification Modal */}
+      {showOnlineOrderModal && incomingOnlineOrders.length > 0 && (
+        <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
+          <div className="bg-white p-6 rounded shadow-lg max-w-md w-full">
+            <h3 className="text-xl font-bold mb-2">New Online Order!</h3>
+            <p className="mb-2">
+              Customer: {incomingOnlineOrders[0].customer?.name}
+            </p>
+            <p className="mb-2">Order ID: {incomingOnlineOrders[0].orderId}</p>
+            <ul className="mb-2">
+              {incomingOnlineOrders[0].items.map((item, idx) => (
+                <li key={idx}>
+                  {item.name} x {item.quantity}
+                </li>
+              ))}
+            </ul>
+            <button
+              className="bg-orange-600 text-white px-4 py-2 rounded"
+              onClick={() => acceptOnlineOrder(incomingOnlineOrders[0].orderId)}
+            >
+              Accept & Print
+            </button>
+            <button
+              className="ml-2 px-4 py-2 rounded"
+              onClick={() => setShowOnlineOrderModal(false)}
+            >
+              Dismiss
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Order History Tables */}
+      <div className="mt-8">
+        <h2 className="text-xl font-bold mb-2">Order History</h2>
+        <div className="mb-6">
+          <h3 className="font-semibold mb-1">Store Orders (POS)</h3>
+          {/* Table for staff orders */}
+          {/* Fetch and display orders with source: 'order' */}
+        </div>
+        <div>
+          <h3 className="font-semibold mb-1">Online Orders</h3>
+          {/* Table for online orders */}
+          {/* Fetch and display orders with source: 'customer' */}
+        </div>
+      </div>
     </div>
   );
 }
