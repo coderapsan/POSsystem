@@ -14,6 +14,8 @@ const OrderSchema = new mongoose.Schema(
     createdAt: { type: Date, default: Date.now },
     status: { type: String, default: "pending" }, // pending, accepted, completed
     source: { type: String }, // 'customer' or 'pos'
+    acceptedAt: { type: Date },
+    completedAt: { type: Date },
   },
   { collection: "orders" }
 );

@@ -42,7 +42,24 @@ export default async function handler(req, res) {
       console.error("Error fetching orders:", error);
       return res.status(500).json({ success: false, error: error.message });
     }
+  } else if (req.method === "DELETE") {
+    try {
+      await connectToDatabase();
+      const { orderId } = req.query;
+      if (!orderId) {
+        return res.status(400).json({ success: false, error: "orderId is required" });
+      }
+
+      const result = await Order.findOneAndDelete({ orderId });
+      if (!result) {
+        return res.status(404).json({ success: false, error: "Order not found" });
+      }
+      return res.status(200).json({ success: true });
+    } catch (error) {
+      console.error("Error deleting order:", error);
+      return res.status(500).json({ success: false, error: error.message });
+    }
   } else {
-    res.status(405).json({ message: "Method not allowed" });
+    res.status(405).json({ success: false, error: "Method not allowed" });
   }
 }

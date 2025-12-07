@@ -1,66 +1,185 @@
+import path from "path";
+import { promises as fs } from "fs";
 import dbConnect from "../../lib/mongodb";
 import Menu from "../../models/Menu";
 
-export default async function handler(req, res) {
-  await dbConnect();
-  if (req.method === "GET") {
-    // Fetch all menu items, group by category
-    const items = await Menu.find({});
-    const menu = {};
-    items.forEach(item => {
-      if (!menu[item.category]) menu[item.category] = [];
-      menu[item.category].push({
-        id: item._id,
+function normalizeAllergens(value) {
+  if (Array.isArray(value)) return value.filter(Boolean);
+  if (!value) return [];
+  return String(value)
+    .split(",")
+    .map((tag) => tag.trim())
+    .filter(Boolean);
+}
+
+async function seedMenuFromJson() {
+  const jsonPath = path.join(process.cwd(), "src", "data", "momos.json");
+  const raw = await fs.readFile(jsonPath, "utf-8");
+  const menuData = JSON.parse(raw);
+
+  const docs = [];
+
+  Object.entries(menuData || {}).forEach(([category, items]) => {
+    if (!Array.isArray(items)) return;
+
+    items.forEach((item) => {
+      const rawLarge = Number(
+        item?.price?.large ?? item?.price?.regular ?? item?.price?.standard ?? item?.price
+      );
+      const rawSmall = Number(item?.price?.small ?? 0);
+      const parsedLarge = Number.isFinite(rawLarge) && rawLarge > 0 ? rawLarge : 0;
+      const parsedSmall = Number.isFinite(rawSmall) && rawSmall > 0 ? rawSmall : 0;
+
+      docs.push({
         name: item.name,
-        description: item.description,
-        price: item.price,
-        portion: item.portion,
-        spicyLevel: item.spicyLevel,
-        allergens: item.allergens,
-        isAvailable: item.isAvailable
+        description: item.description || "",
+        category,
+        price: {
+          large: parsedLarge || parsedSmall,
+          small: parsedSmall && parsedSmall !== parsedLarge ? parsedSmall : 0,
+        },
+        portion: item.portion || "standard",
+        spicyLevel: item.spicyLevel || "",
+        allergens: normalizeAllergens(item.allergens),
+        isAvailable: item.isAvailable !== false,
+        legacyId: typeof item.id === "number" ? item.id : undefined,
       });
     });
-    return res.status(200).json({ success: true, menu });
-  }
-  if (req.method === "POST") {
-    // Add new menu item
-    const { category, item } = req.body;
-    if (!category || !item || !item.name || !item.price) return res.status(400).json({ success: false, error: "Missing fields" });
-    try {
-      const newItem = await Menu.create({ ...item, category, price: item.price });
-      return res.status(201).json({ success: true, item: newItem });
-    } catch (err) {
-      return res.status(500).json({ success: false, error: err.message });
-    }
-  }
-  if (req.method === "PUT") {
-    // Edit menu item field
-    const { itemId, field, value } = req.body;
-    if (!itemId || !field) return res.status(400).json({ success: false, error: "Missing fields" });
-    try {
-      let update = {};
-      if (field.startsWith("price.")) {
-        const priceField = field.split(".")[1];
-        update[`price.${priceField}`] = value;
-      } else {
-        update[field] = value;
+  });
+
+  if (docs.length === 0) return [];
+
+  await Menu.insertMany(docs);
+  return docs;
+}
+
+export default async function handler(req, res) {
+  await dbConnect();
+
+  try {
+    switch (req.method) {
+      case "GET": {
+        let items = await Menu.find({});
+
+        if (items.length === 0) {
+          try {
+            await seedMenuFromJson();
+            items = await Menu.find({});
+          } catch (seedError) {
+            console.error("Menu seed failed:", seedError);
+          }
+        }
+        const menu = {};
+
+        items.forEach((item) => {
+          const category = item.category || "Uncategorized";
+          if (!menu[category]) menu[category] = [];
+          menu[category].push({
+            id: item._id.toString(),
+            name: item.name,
+            description: item.description,
+            price: item.price,
+            portion: item.portion,
+            spicyLevel: item.spicyLevel,
+            allergens: normalizeAllergens(item.allergens),
+            isAvailable: item.isAvailable !== false,
+          });
+        });
+
+        return res.status(200).json({ success: true, menu });
       }
-      await Menu.findByIdAndUpdate(itemId, { $set: update });
-      return res.status(200).json({ success: true });
-    } catch (err) {
-      return res.status(500).json({ success: false, error: err.message });
+
+      case "POST": {
+        const { category, item } = req.body;
+        if (!category || !item || !item.name || !item.price) {
+          return res.status(400).json({ success: false, error: "Missing fields" });
+        }
+
+        const payload = {
+          category: String(category).trim(),
+          name: item.name.trim(),
+          description: item.description || "",
+          price: {
+            large: Number(item.price.large) || 0,
+            small: Number(item.price.small) || 0,
+          },
+          portion: item.portion || "standard",
+          spicyLevel: item.spicyLevel || "",
+          allergens: normalizeAllergens(item.allergens),
+          isAvailable: item.isAvailable !== false,
+        };
+
+        const newItem = await Menu.create(payload);
+        return res.status(201).json({ success: true, item: newItem });
+      }
+
+      case "PUT": {
+        const { itemId, field, value, updates } = req.body;
+        if (!itemId) {
+          return res.status(400).json({ success: false, error: "Missing fields" });
+        }
+
+        let update = {};
+        if (updates && typeof updates === "object") {
+          update = { ...updates };
+        } else if (field) {
+          if (field.startsWith("price.")) {
+            const priceField = field.split(".")[1];
+            update[`price.${priceField}`] = value;
+          } else {
+            update[field] = value;
+          }
+        } else {
+          return res.status(400).json({ success: false, error: "Nothing to update" });
+        }
+
+        if (update.price) {
+          update.price = {
+            large: Number(update.price.large) || 0,
+            small: Number(update.price.small) || 0,
+          };
+        }
+
+        if (Object.prototype.hasOwnProperty.call(update, "allergens")) {
+          update.allergens = normalizeAllergens(update.allergens);
+        }
+
+        if (Object.prototype.hasOwnProperty.call(update, "isAvailable")) {
+          update.isAvailable = Boolean(update.isAvailable);
+        }
+
+        if (update.category) {
+          update.category = String(update.category).trim();
+        }
+
+        if (update.name) {
+          update.name = String(update.name).trim();
+        }
+
+        await Menu.findByIdAndUpdate(itemId, { $set: update });
+        return res.status(200).json({ success: true });
+      }
+
+      case "DELETE": {
+        const { itemId, password } = req.body;
+        if (itemId) {
+          await Menu.findByIdAndDelete(itemId);
+          return res.status(200).json({ success: true });
+        }
+
+        if (password !== "MasterNepal") {
+          return res.status(403).json({ success: false, error: "Invalid password" });
+        }
+
+        await Menu.deleteMany({});
+        return res.status(200).json({ success: true });
+      }
+
+      default:
+        return res.status(405).json({ success: false, error: "Method not allowed" });
     }
+  } catch (error) {
+    console.error("Menu API error:", error);
+    return res.status(500).json({ success: false, error: error.message });
   }
-  if (req.method === "DELETE") {
-    // Clear all menu items (requires password)
-    const { password } = req.body;
-    if (password !== "MasterNepal") return res.status(403).json({ success: false, error: "Invalid password" });
-    try {
-      await Menu.deleteMany({});
-      return res.status(200).json({ success: true });
-    } catch (err) {
-      return res.status(500).json({ success: false, error: err.message });
-    }
-  }
-  res.status(405).json({ success: false, error: "Method not allowed" });
 }
