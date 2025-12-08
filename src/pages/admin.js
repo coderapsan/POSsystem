@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import Navbar from "../components/common/Navbar";
+import StaffGate from "../components/common/StaffGate";
 
 const TABS = [
   { id: "dashboard", label: "Dashboard" },
@@ -1093,89 +1094,107 @@ export default function Admin() {
 
   if (!authenticated) {
     return (
-      <div>
-        <Navbar />
-        <main className="max-w-md mx-auto p-6 mt-12 bg-white rounded-lg shadow space-y-6">
-          <div>
-            <h1 className="text-2xl font-bold text-orange-700 mb-2">Admin Sign In</h1>
-            <p className="text-sm text-gray-600">
-              Enter the master password to access the control centre.
-            </p>
-          </div>
-          <form onSubmit={handleLogin} className="space-y-3">
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="Password"
-              className="border p-2 rounded w-full"
-              required
-            />
-            <button className="w-full bg-orange-600 hover:bg-orange-700 text-white px-4 py-2 rounded" type="submit">
-              Login
-            </button>
-          </form>
-          <button className="text-sm text-orange-600 hover:underline" onClick={() => setResetMode((prev) => !prev)}>
-            {resetMode ? "Hide password reset" : "Need to reset password?"}
-          </button>
-          {resetMode && (
-            <form onSubmit={handleResetPassword} className="space-y-3 border-t pt-4">
-              <input
-                type="password"
-                value={oldPassword}
-                onChange={(e) => setOldPassword(e.target.value)}
-                placeholder="Current password"
-                className="border p-2 rounded w-full"
-                required
-              />
-              <input
-                type="password"
-                value={newPassword}
-                onChange={(e) => setNewPassword(e.target.value)}
-                placeholder="New password"
-                className="border p-2 rounded w-full"
-                required
-              />
-              <div className="flex gap-2">
-                <button className="flex-1 bg-blue-600 text-white px-4 py-2 rounded" type="submit">
-                  Update password
-                </button>
-                <button
-                  className="flex-1 border px-4 py-2 rounded"
-                  type="button"
-                  onClick={() => setResetMode(false)}
-                >
-                  Cancel
-                </button>
-              </div>
-            </form>
-          )}
-          {message && message.type === "error" && (
-            <div className="text-sm text-red-600 bg-red-50 border border-red-200 px-3 py-2 rounded">
-              {message.text}
+      <StaffGate>
+        <div className="min-h-screen bg-[#0b1120] text-slate-100">
+          <Navbar />
+          <main className="mx-auto mt-16 max-w-md rounded-3xl border border-white/10 bg-white/5 p-6 shadow-lg shadow-black/30 backdrop-blur">
+            <div>
+              <p className="text-xs uppercase tracking-[0.35em] text-[#f26b30]">Admin</p>
+              <h1 className="mt-2 text-2xl font-semibold text-white">Control Centre Sign In</h1>
+              <p className="mt-1 text-sm text-slate-300">
+                Enter the master password provided by management to continue.
+              </p>
             </div>
-          )}
-        </main>
-      </div>
+            <form onSubmit={handleLogin} className="mt-5 space-y-3">
+              <input
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="Master password"
+                className="w-full rounded-lg border border-white/15 bg-[#0f192d] px-4 py-3 text-sm text-white placeholder:text-slate-500 caret-[#f26b30] focus:border-[#f26b30] focus:outline-none focus:ring-2 focus:ring-[#f26b30]/40"
+                required
+              />
+              <button
+                className="w-full rounded-full bg-[#f26b30] px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-[#f26b30]/30 transition hover:bg-[#ff7a3e]"
+                type="submit"
+              >
+                Log in
+              </button>
+            </form>
+            <button
+              className="mt-4 text-xs font-medium uppercase tracking-[0.2em] text-[#f26b30]"
+              onClick={() => setResetMode((prev) => !prev)}
+            >
+              {resetMode ? "Hide password reset" : "Reset password"}
+            </button>
+            {resetMode && (
+              <form onSubmit={handleResetPassword} className="mt-4 space-y-3 border-t border-white/10 pt-4">
+                <input
+                  type="password"
+                  value={oldPassword}
+                  onChange={(e) => setOldPassword(e.target.value)}
+                  placeholder="Current password"
+                  className="w-full rounded-lg border border-white/15 bg-[#0f192d] px-4 py-3 text-sm text-white placeholder:text-slate-500 caret-[#f26b30] focus:border-[#f26b30] focus:outline-none focus:ring-2 focus:ring-[#f26b30]/40"
+                  required
+                />
+                <input
+                  type="password"
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  placeholder="New password"
+                  className="w-full rounded-lg border border-white/15 bg-[#0f192d] px-4 py-3 text-sm text-white placeholder:text-slate-500 caret-[#f26b30] focus:border-[#f26b30] focus:outline-none focus:ring-2 focus:ring-[#f26b30]/40"
+                  required
+                />
+                <div className="flex gap-2">
+                  <button className="flex-1 rounded-full bg-[#f26b30] px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-[#f26b30]/30 transition hover:bg-[#ff7a3e]" type="submit">
+                    Update password
+                  </button>
+                  <button
+                    className="flex-1 rounded-full border border-white/15 px-4 py-2 text-sm font-semibold text-slate-200 transition hover:border-[#f26b30] hover:text-white"
+                    type="button"
+                    onClick={() => setResetMode(false)}
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </form>
+            )}
+            {message && message.type === "error" && (
+              <div className="mt-4 rounded-lg border border-red-500/40 bg-red-500/10 px-4 py-3 text-xs text-red-200">
+                {message.text}
+              </div>
+            )}
+          </main>
+        </div>
+      </StaffGate>
     );
   }
 
   return (
-    <div>
-      <Navbar />
-      <main className="max-w-6xl mx-auto p-6 space-y-6">
+    <StaffGate>
+      <div className="min-h-screen bg-[#0b1120] text-slate-100">
+        <Navbar />
+        <main className="mx-auto max-w-6xl space-y-6 px-4 py-8 sm:px-6 lg:px-8">
         <header className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
           <div>
-            <h1 className="text-3xl font-bold text-orange-700">Admin Control Centre</h1>
-            <p className="text-sm text-gray-600">
+            <h1 className="text-3xl font-bold text-white">Admin Control Centre</h1>
+            <p className="text-sm text-slate-300">
               Monitor performance, manage menu items, and maintain your order history from one place.
             </p>
           </div>
-          <div className="flex gap-2">
-            <button className="border px-3 py-2 rounded" onClick={fetchMenu} disabled={loading.menu}>
+          <div className="flex flex-wrap gap-2">
+            <button
+              className="rounded-full border border-white/15 px-4 py-2 text-sm font-medium text-slate-200 transition hover:border-[#f26b30] hover:text-white"
+              onClick={fetchMenu}
+              disabled={loading.menu}
+            >
               {loading.menu ? "Refreshing menu…" : "Refresh menu"}
             </button>
-            <button className="border px-3 py-2 rounded" onClick={fetchOrders} disabled={loading.orders}>
+            <button
+              className="rounded-full border border-white/15 px-4 py-2 text-sm font-medium text-slate-200 transition hover:border-[#f26b30] hover:text-white"
+              onClick={fetchOrders}
+              disabled={loading.orders}
+            >
               {loading.orders ? "Refreshing orders…" : "Refresh orders"}
             </button>
           </div>
@@ -1187,8 +1206,8 @@ export default function Admin() {
               key={tab.id}
               className={`px-4 py-2 rounded-full border transition ${
                 activeTab === tab.id
-                  ? "bg-orange-600 text-white border-orange-600"
-                  : "border-gray-300 text-gray-600 hover:border-orange-400"
+                  ? "border-[#f26b30] bg-[#f26b30]/20 text-white"
+                  : "border-white/15 text-slate-300 hover:border-[#f26b30]"
               }`}
               onClick={() => setActiveTab(tab.id)}
             >
@@ -1199,10 +1218,10 @@ export default function Admin() {
 
         {message && (
           <div
-            className={`px-4 py-3 rounded border text-sm ${
+            className={`rounded-2xl border px-4 py-3 text-sm ${
               message.type === "error"
-                ? "bg-red-50 border-red-200 text-red-700"
-                : "bg-green-50 border-green-200 text-green-700"
+                ? "border-red-500/40 bg-red-500/10 text-red-200"
+                : "border-emerald-500/40 bg-emerald-500/10 text-emerald-200"
             }`}
           >
             {message.text}
@@ -1213,8 +1232,9 @@ export default function Admin() {
         {activeTab === "orders" && renderOrders()}
         {activeTab === "menu" && renderMenuManager()}
         {activeTab === "utilities" && renderUtilities()}
-      </main>
-    </div>
+        </main>
+      </div>
+    </StaffGate>
   );
 }
 

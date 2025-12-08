@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Navbar from "../components/common/Navbar";
+import StaffGate from "../components/common/StaffGate";
 
 const MENU_CACHE_KEY = "momos-menu-cache";
 const MENU_CACHE_TTL = 1000 * 60 * 5; // 5 minutes
@@ -487,80 +488,77 @@ export default function Order() {
 
   const handlePrintReceipt = () => {
     const receiptWindow = window.open("", "_blank");
+
+    const customerDetails =
+      customer.name || customer.phone
+        ? `<div class="line"></div>
+           <div class="section-title">Customer</div>
+           <div>Name: ${customer.name || "-"}</div>
+           <div>Phone: ${customer.phone || "-"}</div>
+           <div>Address: ${customer.address || "-"}</div>
+           <div>Postal: ${customer.postalCode || "-"}</div>`
+        : "";
+
+    const itemsHtml = cart
+      .map((item) => {
+        const portionLabel = item.portion ? ` (${formatPortionLabel(item.portion)})` : "";
+        return `${item.quantity} × ${item.name}${portionLabel} - £${(
+          item.price * item.quantity
+        ).toFixed(2)}`;
+      })
+      .join("<br/>");
+
+    const discountHtml =
+      discountValue > 0
+        ? `<div>Discount (${discountPercent}%): -£${discountValue.toFixed(2)}</div>`
+        : "";
+
+    const paymentSummary =
+      paymentMethod === "Card"
+        ? "Card payment collected securely by phone (details not stored)."
+        : `Payment method: ${paymentMethod}`;
+
+    const statusSummary = isPaid ? "Payment received" : "Awaiting payment";
+
     const receiptContent = `
       <html>
         <head>
           <title>Receipt - ${orderNumber}</title>
           <meta name="viewport" content="width=device-width, initial-scale=1.0" />
           <style>
-            body {
-              font-family: monospace;
-              padding: 8px;
-              font-size: 12px;
-              width: 80mm;
-              margin: 0 auto;
-            }
-            h1 {
-              text-align: center;
-              margin-bottom: 4px;
-              font-size: 18px;
-            }
+            body { font-family: monospace; padding: 8px; font-size: 12px; width: 80mm; margin: 0 auto; }
+            h1 { text-align: center; margin-bottom: 2px; font-size: 18px; }
             .center { text-align: center; }
-            .line { border-top: 1px dashed #000; margin: 5px 0; }
-            .bold { font-weight: bold; }
+            .line { border-top: 1px dashed #000; margin: 6px 0; }
+            .order-number { font-size: 16px; font-weight: bold; text-align: center; margin: 4px 0; }
             .total { font-size: 14px; font-weight: bold; text-align: right; }
-            .order-number {
-              font-size: 16px;
-              font-weight: bold;
-              text-align: center;
-              margin: 4px 0;
-            }
+            .section-title { font-weight: bold; text-transform: uppercase; font-size: 11px; letter-spacing: 0.08em; margin-bottom: 2px; }
+            .note { font-size: 10px; margin-top: 3px; }
           </style>
         </head>
         <body>
           <h1>The MoMos</h1>
+          <div class="center">Authentic Himalayan Street Food</div>
           <div class="center">340 Kingston Road, SW20 8LR</div>
-          <div class="center">Tel: 0208 123 4567</div>
+          <div class="center">Tel: 0208 123 4567 • themomos.co.uk</div>
           <div class="line"></div>
-          <div class="order-number">#${orderNumber}</div>
+          <div class="order-number">Order #${orderNumber}</div>
           <div>Date: ${new Date().toLocaleString()}</div>
-          <div>Type: ${orderType}</div>
-          ${
-            customer.name || customer.phone
-              ? `<div class="line"></div>
-                 <div><strong>Customer Info:</strong></div>
-                 <div>Name: ${customer.name || "-"}</div>
-                 <div>Phone: ${customer.phone || "-"}</div>
-                 <div>Address: ${customer.address || "-"}</div>
-                 <div>Postal: ${customer.postalCode || "-"}</div>`
-              : ""
-          }
+          <div>Service: ${orderType}</div>
+          ${customerDetails}
           <div class="line"></div>
-          ${cart
-            .map((item) => {
-              const portionLabel = item.portion
-                ? ` (${formatPortionLabel(item.portion)})`
-                : "";
-              return `${item.quantity} × ${item.name}${portionLabel} - £${(
-                item.price * item.quantity
-              ).toFixed(2)}`;
-            })
-            .join("<br/>")}
+          <div class="section-title">Items</div>
+          ${itemsHtml}
           <div class="line"></div>
           <div>Subtotal: £${subtotal.toFixed(2)}</div>
-          ${
-            discountValue > 0
-              ? `<div>Discount (${discountPercent}%): -£${discountValue.toFixed(
-                  2
-                )}</div>`
-              : ""
-          }
-          <div class="total">Total: £${total.toFixed(2)}</div>
+          ${discountHtml}
+          <div class="total">Total due: £${total.toFixed(2)}</div>
           <div class="line"></div>
-          <div>Payment: ${paymentMethod}</div>
-          <div>Status: ${isPaid ? "Paid" : "Pending Cash"}</div>
+          <div>${paymentSummary}</div>
+          <div>Status: ${statusSummary}</div>
           <div class="line"></div>
-          <div class="center">Thank You! Visit Again</div>
+          <div class="center note">Thank you for supporting independent Nepalese cuisine.</div>
+          <div class="center note">Connect with us: @themomosldn • themomos.co.uk</div>
         </body>
       </html>`;
 
@@ -709,6 +707,13 @@ export default function Order() {
     const customerInfo = order.customer || {};
     const total = Number(order.total || 0).toFixed(2);
 
+    const paymentSummary =
+      order.paymentMethod === "Card"
+        ? "Card payment to be collected securely by phone (never store card details)."
+        : `Payment method: ${order.paymentMethod || "Cash"}`;
+
+    const statusSummary = order.status ? `Status: ${order.status}` : "Status: Pending";
+
     const content = `
       <html>
         <head>
@@ -716,21 +721,25 @@ export default function Order() {
           <meta name="viewport" content="width=device-width, initial-scale=1.0" />
           <style>
             body { font-family: monospace; padding: 8px; font-size: 12px; width: 80mm; margin: 0 auto; }
-            h1 { text-align: center; margin-bottom: 4px; font-size: 18px; }
+            h1 { text-align: center; margin-bottom: 2px; font-size: 18px; }
             .center { text-align: center; }
-            .line { border-top: 1px dashed #000; margin: 5px 0; }
-            .total { font-size: 14px; font-weight: bold; text-align: right; }
+            .line { border-top: 1px dashed #000; margin: 6px 0; }
             .order-number { font-size: 16px; font-weight: bold; text-align: center; margin: 4px 0; }
-            .section-title { font-weight: bold; margin-top: 6px; }
+            .total { font-size: 14px; font-weight: bold; text-align: right; }
+            .section-title { font-weight: bold; text-transform: uppercase; font-size: 11px; letter-spacing: 0.08em; margin-top: 4px; }
+            .note { font-size: 10px; margin-top: 3px; }
           </style>
         </head>
         <body>
           <h1>The MoMos</h1>
           <div class="center">Online Order Ticket</div>
+          <div class="center">340 Kingston Road, SW20 8LR</div>
+          <div class="center">Tel: 0208 123 4567 • themomos.co.uk</div>
           <div class="line"></div>
-          <div class="order-number">#${order.orderId}</div>
+          <div class="order-number">Order #${order.orderId}</div>
           <div>Date: ${displayDate}</div>
-          <div>Payment: ${order.paymentMethod || "Cash"}</div>
+          <div>${paymentSummary}</div>
+          <div>${statusSummary}</div>
           <div class="line"></div>
           <div class="section-title">Customer</div>
           <div>Name: ${customerInfo.name || "-"}</div>
@@ -739,11 +748,13 @@ export default function Order() {
           <div>Postal: ${customerInfo.postalCode || "-"}</div>
           ${customerInfo.notes ? `<div>Notes: ${customerInfo.notes}</div>` : ""}
           <div class="line"></div>
+          <div class="section-title">Items</div>
           ${itemsHtml}
           <div class="line"></div>
           <div class="total">Total: £${total}</div>
           <div class="line"></div>
-          <div class="center">Accept & Serve Hot!</div>
+          <div class="center note">Card payments require an immediate phone call to capture details offline.</div>
+          <div class="center note">Serve hot • Thank you!</div>
         </body>
       </html>
     `;
@@ -793,9 +804,10 @@ export default function Order() {
   };
 
   return (
-    <div className="min-h-screen bg-[#0b1120] text-slate-100">
-      <Navbar />
-      <main className="mx-auto flex max-w-7xl flex-col gap-6 px-4 py-8 pb-56 sm:px-6 lg:px-8 lg:pb-12">
+    <StaffGate>
+      <div className="min-h-screen bg-[#0b1120] text-slate-100">
+        <Navbar />
+        <main className="mx-auto flex max-w-7xl flex-col gap-6 px-4 py-8 pb-56 sm:px-6 lg:px-8 lg:pb-12">
         <header className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div>
             <p className="text-xs uppercase tracking-[0.5em] text-[#f26b30]">Live POS</p>
@@ -903,6 +915,65 @@ export default function Order() {
 
             <div className="rounded-3xl border border-white/10 bg-white/5 p-5 shadow-lg shadow-black/30 backdrop-blur">
               <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <h3 className="text-lg font-semibold text-white">Categories</h3>
+                  <p className="text-xs text-slate-400">Tap a category to focus; items open in a popup for speed.</p>
+                </div>
+                <span className="text-xs uppercase tracking-[0.35em] text-slate-500">
+                  {availableCategoryCount} groups
+                </span>
+              </div>
+
+              {categories.length > 0 && (
+                <div className="mt-4 overflow-x-auto pb-2">
+                  <div className="flex gap-2">
+                    {categories.map(({ label, items }) => {
+                      const availableCount = (items || []).filter((item) => item.isAvailable !== false).length;
+                      if (availableCount === 0) return null;
+                      return (
+                        <button
+                          key={`quick-${label}`}
+                          type="button"
+                          onClick={() => openCategoryModal(label)}
+                          className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-[#10172d] px-4 py-2 text-xs font-medium uppercase tracking-[0.2em] text-slate-200 transition hover:border-[#f26b30] hover:text-white"
+                        >
+                          <span>{label}</span>
+                          <span className="rounded-full bg-[#f26b30]/15 px-2 py-0.5 text-[11px] font-semibold text-[#f26b30]">
+                            {availableCount}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {menuLoading ? (
+                <div className="mt-6 flex items-center gap-3 rounded-2xl border border-white/10 bg-[#0f1628]/80 px-4 py-3 text-sm text-slate-300">
+                  <span className="h-3 w-3 animate-spin rounded-full border-2 border-white/20 border-t-[#f26b30]"></span>
+                  Loading menu…
+                </div>
+              ) : menuError ? (
+                <div className="mt-6 rounded-2xl border border-red-500/40 bg-red-500/10 px-4 py-4 text-sm text-red-200">
+                  <p className="mb-3 font-semibold">We could not load the menu.</p>
+                  <p className="text-xs text-red-100/80">{menuError}</p>
+                  <button className={`${actionButtonClass} mt-4`} onClick={loadMenu}>
+                    Try again
+                  </button>
+                </div>
+              ) : categories.length === 0 ? (
+                <p className="mt-6 rounded-2xl border border-white/10 bg-[#0f1628]/60 px-4 py-4 text-sm italic text-slate-400">
+                  No menu items available. Import the latest menu from the admin console to get started.
+                </p>
+              ) : (
+                <div className="mt-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                  {categories.map(({ label, items }) => renderCategory(label, items))}
+                </div>
+              )}
+            </div>
+
+            <div className="rounded-3xl border border-white/10 bg-white/5 p-5 shadow-lg shadow-black/30 backdrop-blur">
+              <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
                 <h3 className="text-lg font-semibold text-white">Order Information</h3>
                 <span className="text-xs uppercase tracking-[0.35em] text-slate-500">{orderType}</span>
               </div>
@@ -946,42 +1017,15 @@ export default function Order() {
                   onChange={(e) => setCustomer({ ...customer, notes: e.target.value })}
                   className={`${inputClass} sm:col-span-2 lg:col-span-3`}
                 />
+                {paymentMethod === "Card" && (
+                  <div className="sm:col-span-2 lg:col-span-3 rounded-xl border border-[#f26b30]/30 bg-[#f26b30]/10 px-4 py-3 text-xs text-[#f6ceb5]">
+                    <p className="text-[#fbd7c1] font-semibold uppercase tracking-[0.2em]">Card order protocol</p>
+                    <p className="mt-1 text-[#fde5d7]/80">
+                      Call the customer straight away and take their card details securely over the phone. Do not store the card number in the system. Once payment is confirmed, tick "Payment received" so the receipt prints for the kitchen.
+                    </p>
+                  </div>
+                )}
               </div>
-            </div>
-
-            <div className="rounded-3xl border border-white/10 bg-white/5 p-5 shadow-lg shadow-black/30 backdrop-blur">
-              <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
-                <div>
-                  <h3 className="text-lg font-semibold text-white">Categories</h3>
-                  <p className="text-xs text-slate-400">Tap a category to focus; items open in a popup for speed.</p>
-                </div>
-                <span className="text-xs uppercase tracking-[0.35em] text-slate-500">
-                  {availableCategoryCount} groups
-                </span>
-              </div>
-
-              {menuLoading ? (
-                <div className="mt-6 flex items-center gap-3 rounded-2xl border border-white/10 bg-[#0f1628]/80 px-4 py-3 text-sm text-slate-300">
-                  <span className="h-3 w-3 animate-spin rounded-full border-2 border-white/20 border-t-[#f26b30]"></span>
-                  Loading menu…
-                </div>
-              ) : menuError ? (
-                <div className="mt-6 rounded-2xl border border-red-500/40 bg-red-500/10 px-4 py-4 text-sm text-red-200">
-                  <p className="mb-3 font-semibold">We could not load the menu.</p>
-                  <p className="text-xs text-red-100/80">{menuError}</p>
-                  <button className={`${actionButtonClass} mt-4`} onClick={loadMenu}>
-                    Try again
-                  </button>
-                </div>
-              ) : categories.length === 0 ? (
-                <p className="mt-6 rounded-2xl border border-white/10 bg-[#0f1628]/60 px-4 py-4 text-sm italic text-slate-400">
-                  No menu items available. Import the latest menu from the admin console to get started.
-                </p>
-              ) : (
-                <div className="mt-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-                  {categories.map(({ label, items }) => renderCategory(label, items))}
-                </div>
-              )}
             </div>
           </div>
 
@@ -1122,16 +1166,24 @@ export default function Order() {
                         <option>Card</option>
                       </select>
                     </label>
-                    <label className="flex items-center gap-2 rounded-full border border-white/10 px-3 py-2 text-xs font-medium text-slate-300">
+                    <label
+                      className="flex items-center gap-2 rounded-full border border-white/10 px-3 py-2 text-xs font-medium text-slate-300"
+                      title="Toggle once payment is confirmed so the receipt can be printed."
+                    >
                       <input
                         type="checkbox"
                         checked={isPaid}
                         onChange={() => setIsPaid(!isPaid)}
                         className="h-4 w-4 rounded border-white/20 bg-transparent text-[#f26b30]"
                       />
-                      Paid
+                      Payment received
                     </label>
                   </div>
+                  {paymentMethod === "Card" && (
+                    <div className="rounded-xl border border-[#f26b30]/30 bg-[#f26b30]/10 px-4 py-3 text-xs text-[#f6ceb5]">
+                      Card orders: call the customer to take payment securely by phone. Do not store card details. Once payment is complete, tick "Payment received" to print the receipt.
+                    </div>
+                  )}
 
                   <button
                     className={`${actionButtonClass} w-full justify-center`}
@@ -1349,7 +1401,7 @@ export default function Order() {
             </div>
             <div className="mt-6 flex flex-wrap justify-center gap-3">
               <button onClick={handlePrintReceipt} className={actionButtonClass}>
-                Print & Reset
+                Payment received • Print receipt
               </button>
               <button onClick={() => setShowReceipt(false)} className={subtleButtonClass}>
                 Close
@@ -1399,4 +1451,5 @@ export default function Order() {
         </div>
       )}
     </div>
+  </StaffGate>
   )};

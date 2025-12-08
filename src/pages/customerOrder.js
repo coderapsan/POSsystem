@@ -480,6 +480,11 @@ export default function CustomerOrder() {
                     <option>Card</option>
                     <option>Pay on collection</option>
                   </select>
+                  {paymentMethod === "Card" && (
+                    <div className="sm:col-span-2 rounded-xl border border-[#f26b30]/30 bg-[#f26b30]/10 px-4 py-3 text-xs text-[#f6ceb5]">
+                      We will call you back shortly to collect your card payment details securely. Please keep your phone nearby.
+                    </div>
+                  )}
                   <textarea
                     placeholder="Notes for the kitchen (optional)"
                     value={customer.notes}
@@ -607,6 +612,9 @@ export default function CustomerOrder() {
               >
                 Submit order
               </button>
+              <p className="mt-2 text-center text-[11px] text-slate-400">
+                Card order? We will ring you to take payment. Card details stay offline for your security.
+              </p>
               {cart.length > 0 && (
                 <button
                   className="mt-3 w-full rounded-full border border-white/10 px-6 py-3 text-sm font-medium text-slate-200 transition hover:border-[#f26b30] hover:text-white"
@@ -695,7 +703,7 @@ export default function CustomerOrder() {
                         </span>
                       </div>
                       <p className="line-clamp-2 text-xs leading-relaxed text-slate-400">
-                        {item.description || "Ask our team for today’s chef notes."}
+                        {item.description || "Ask our team for today's chef notes."}
                       </p>
                       <div className="flex flex-wrap gap-2 text-[11px] uppercase tracking-[0.2em] text-slate-500">
                         <span>Spice: {item.spicyLevel || "Mild"}</span>

@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import Navbar from "../components/common/Navbar";
+import StaffGate from "../components/common/StaffGate";
 
 export default function OrderHistory() {
   const [orders, setOrders] = useState([]);
@@ -97,55 +98,77 @@ export default function OrderHistory() {
   const filteredOrders = orders.filter(matchesFilter);
 
   return (
-    <div>
-      <Navbar />
-      <div className="p-6 max-w-3xl mx-auto">
-        <h2 className="text-2xl font-bold mb-4 text-orange-700">Order History</h2>
-        <input
-          type="text"
-          value={filter}
-          onChange={e => setFilter(e.target.value)}
-          placeholder="Filter by Order ID, Customer Name, or Phone"
-          className="border p-2 rounded mb-4 w-full"
-        />
-        {loading ? (
-          <p>Loading...</p>
-        ) : error ? (
-          <p className="text-red-600">{error}</p>
-        ) : filteredOrders.length === 0 ? (
-          <p>No orders found.</p>
-        ) : (
-          <div className="space-y-4">
-            {filteredOrders.map((order) => (
-              <div key={order.orderId} className="border rounded-lg p-4 bg-white shadow">
-                <div className="font-bold text-lg">Order #{order.orderId}</div>
-                <div>Date: {new Date(order.createdAt).toLocaleString()}</div>
-                <div>Customer: {order.customerName || (order.customer && order.customer.name) || "-"}</div>
-                <div>Phone: {(order.customer && order.customer.phone) || "-"}</div>
-                <div>Payment: {order.paymentMethod || "-"}</div>
-                <div>Type: {order.orderType || "-"}</div>
-                <div>Total: £{order.total.toFixed(2)}</div>
-                <div className="mt-2">
-                  <span className="font-semibold">Items:</span>
-                  <ul className="list-disc ml-6">
-                    {order.items.map((item, idx) => (
-                      <li key={idx}>
-                        {item.quantity}× {item.name} ({item.portion}) - £{(item.price * item.quantity).toFixed(2)}
-                      </li>
-                    ))}
-                  </ul>
+    <StaffGate>
+      <div className="min-h-screen bg-[#0b1120] text-slate-100">
+        <Navbar />
+        <div className="mx-auto max-w-5xl px-4 py-8 sm:px-6 lg:px-8">
+          <div className="rounded-3xl border border-white/10 bg-white/5 p-6 shadow-lg shadow-black/30 backdrop-blur">
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+              <h2 className="text-2xl font-semibold text-white">Order History</h2>
+              <span className="text-xs uppercase tracking-[0.35em] text-[#f26b30]">Staff view</span>
+            </div>
+            <input
+              type="text"
+              value={filter}
+              onChange={(event) => setFilter(event.target.value)}
+              placeholder="Filter by order ID, customer, or phone"
+              className="mt-4 w-full rounded-lg border border-white/15 bg-[#0f192d] px-4 py-3 text-sm text-white placeholder:text-slate-500 caret-[#f26b30] focus:border-[#f26b30] focus:outline-none focus:ring-2 focus:ring-[#f26b30]/40"
+            />
+            <div className="mt-6">
+              {loading ? (
+                <p className="text-sm text-slate-300">Loading orders…</p>
+              ) : error ? (
+                <p className="text-sm text-red-300">{error}</p>
+              ) : filteredOrders.length === 0 ? (
+                <p className="text-sm text-slate-400">No orders match the current filter.</p>
+              ) : (
+                <div className="space-y-4">
+                  {filteredOrders.map((order) => (
+                    <div
+                      key={order.orderId}
+                      className="rounded-2xl border border-white/10 bg-[#0f1628] p-5 text-sm text-slate-200 shadow-lg shadow-black/30"
+                    >
+                      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                        <p className="text-lg font-semibold text-white">Order #{order.orderId}</p>
+                        <p className="text-xs uppercase tracking-[0.25em] text-slate-500">
+                          {new Date(order.createdAt).toLocaleString()}
+                        </p>
+                      </div>
+                      <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                        <span>Customer: {order.customerName || order.customer?.name || "Walk-in"}</span>
+                        <span>Phone: {order.customer?.phone || "-"}</span>
+                        <span>Type: {order.orderType || "-"}</span>
+                        <span>Payment: {order.paymentMethod || "-"}</span>
+                        <span>Total: £{Number(order.total || 0).toFixed(2)}</span>
+                      </div>
+                      <div className="mt-3 rounded-xl border border-white/10 bg-black/20 px-4 py-3">
+                        <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">Items</p>
+                        <ul className="mt-2 space-y-1 text-sm">
+                          {order.items.map((item, idx) => (
+                            <li key={idx} className="flex items-center justify-between gap-3">
+                              <span>
+                                {item.quantity}× {item.name}
+                                {item.portion ? ` (${item.portion})` : ""}
+                              </span>
+                              <span>£{(Number(item.price) * Number(item.quantity)).toFixed(2)}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                      <button
+                        className="mt-4 inline-flex items-center justify-center rounded-full bg-[#f26b30] px-5 py-2 text-sm font-semibold text-white shadow-lg shadow-[#f26b30]/30 transition hover:bg-[#ff7a3e]"
+                        onClick={() => handlePrint(order)}
+                      >
+                        Print receipt
+                      </button>
+                    </div>
+                  ))}
                 </div>
-                <button
-                  className="mt-3 bg-orange-600 text-white px-4 py-2 rounded"
-                  onClick={() => handlePrint(order)}
-                >
-                  Print Receipt
-                </button>
-              </div>
-            ))}
+              )}
+            </div>
           </div>
-        )}
+        </div>
       </div>
-    </div>
+    </StaffGate>
   );
 }
