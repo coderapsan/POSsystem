@@ -1,9 +1,15 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Navbar from "../components/common/Navbar";
 
+const MENU_CACHE_KEY = "momos-menu-cache";
+const MENU_CACHE_TTL = 1000 * 60 * 5; // 5 minutes
+
 export default function Order() {
   const [menu, setMenu] = useState({});
   const [expandedCategory, setExpandedCategory] = useState(null);
+  const [categoryModal, setCategoryModal] = useState(null);
+  const [modalFocusItemId, setModalFocusItemId] = useState(null);
+  const [detailItem, setDetailItem] = useState(null);
   const [cart, setCart] = useState([]);
   const [showCart, setShowCart] = useState(false);
   const [showReceipt, setShowReceipt] = useState(false);
@@ -31,6 +37,31 @@ export default function Order() {
 
   const [menuLoading, setMenuLoading] = useState(false);
   const [menuError, setMenuError] = useState(null);
+
+  const categories = useMemo(() => {
+    const list = [];
+    Object.entries(menu || {}).forEach(([parent, value]) => {
+      if (Array.isArray(value)) {
+        list.push({ label: parent, items: value });
+      } else if (value && typeof value === "object") {
+        Object.entries(value).forEach(([child, items]) => {
+          list.push({
+            label: `${parent} - ${child}`,
+            items: Array.isArray(items) ? items : [],
+          });
+        });
+      }
+    });
+    return list;
+  }, [menu]);
+
+  const availableCategoryCount = useMemo(
+    () =>
+      categories.filter(({ items }) =>
+        (items || []).some((item) => item.isAvailable !== false)
+      ).length,
+    [categories]
+  );
 
   const toastTimerRef = useRef(null);
   const [toastMessage, setToastMessage] = useState("");
@@ -89,6 +120,18 @@ export default function Order() {
     return false;
   }, []);
 
+  const applyMenuPayload = useCallback(
+    (nextMenu) => {
+      setMenu(nextMenu);
+      setExpandedCategory((prev) =>
+        prev && categoryHasAvailableItems(nextMenu, prev)
+          ? prev
+          : findFirstAvailableCategory(nextMenu)
+      );
+    },
+    [categoryHasAvailableItems, findFirstAvailableCategory]
+  );
+
   const loadMenu = useCallback(async () => {
     setMenuLoading(true);
     setMenuError(null);
@@ -97,13 +140,14 @@ export default function Order() {
       const data = await res.json();
       if (data.success) {
         const fetchedMenu = data.menu || {};
-        setMenu(fetchedMenu);
-        const firstAvailable = findFirstAvailableCategory(fetchedMenu);
-        setExpandedCategory((prev) =>
-          prev && categoryHasAvailableItems(fetchedMenu, prev)
-            ? prev
-            : firstAvailable
-        );
+        applyMenuPayload(fetchedMenu);
+        if (typeof window !== "undefined") {
+          const payload = {
+            data: fetchedMenu,
+            expiresAt: Date.now() + MENU_CACHE_TTL,
+          };
+          window.localStorage.setItem(MENU_CACHE_KEY, JSON.stringify(payload));
+        }
       } else {
         setMenuError(data.error || "Unable to load menu");
       }
@@ -112,7 +156,21 @@ export default function Order() {
     } finally {
       setMenuLoading(false);
     }
-  }, [categoryHasAvailableItems, findFirstAvailableCategory]);
+  }, [applyMenuPayload]);
+
+  useEffect(() => {
+    if (typeof window === "undefined" || typeof document === "undefined") return;
+    const raw = window.localStorage.getItem(MENU_CACHE_KEY);
+    if (!raw) return;
+    try {
+      const parsed = JSON.parse(raw);
+      if (parsed?.data && (!parsed.expiresAt || parsed.expiresAt > Date.now())) {
+        applyMenuPayload(parsed.data);
+      }
+    } catch (error) {
+      console.warn("Failed to parse cached menu", error);
+    }
+  }, [applyMenuPayload]);
 
   useEffect(() => {
     loadMenu();
@@ -196,7 +254,7 @@ export default function Order() {
   const hasActiveSearch = searchTerm.trim().length > 0;
 
   const inputClass =
-    "w-full rounded-lg border border-white/10 bg-[#10172d] px-3 py-2 text-sm text-slate-100 placeholder-slate-500 focus:border-[#f26b30] focus:outline-none focus:ring-0";
+    "w-full rounded-lg border border-white/15 bg-[#0f192d] px-3 py-2 text-sm text-white placeholder:text-slate-500 caret-[#f26b30] focus:border-[#f26b30] focus:outline-none focus:ring-2 focus:ring-[#f26b30]/40";
   const actionButtonClass =
     "inline-flex items-center justify-center gap-2 rounded-full bg-[#f26b30] px-5 py-2 text-sm font-semibold text-white shadow-lg shadow-[#f26b30]/20 transition hover:bg-[#ff773c] focus:outline-none disabled:cursor-not-allowed disabled:opacity-60";
   const subtleButtonClass =
@@ -209,10 +267,6 @@ export default function Order() {
       setExpandedCategory(null);
     }
   }, [hasActiveSearch, searchResults]);
-
-  const handleCategoryClick = (category) => {
-    setExpandedCategory((prev) => (prev === category ? null : category));
-  };
 
   const resolvePrice = (menuItem, portionKey = "") => {
     const entries = Object.entries(menuItem.price || {})
@@ -280,6 +334,83 @@ export default function Order() {
     Object.entries(item.price || {})
       .map(([portion, value]) => [portion, Number(value)])
       .filter(([, value]) => Number.isFinite(value) && value > 0);
+
+  const getItemsForCategory = useCallback(
+    (label) => {
+      if (!label) return [];
+      if (label.includes(" - ")) {
+        const [parent, child] = label.split(" - ").map((part) => part.trim());
+        const items = menu[parent]?.[child];
+        return Array.isArray(items)
+          ? items.filter((item) => item.isAvailable !== false)
+          : [];
+      }
+      const catData = menu[label];
+      if (Array.isArray(catData)) {
+        return catData.filter((item) => item.isAvailable !== false);
+      }
+      return [];
+    },
+    [menu]
+  );
+
+  const openCategoryModal = useCallback(
+    (label, options = {}) => {
+      const items = getItemsForCategory(label);
+      if (items.length === 0) {
+        triggerToast("Items currently unavailable");
+        return;
+      }
+      setExpandedCategory(label);
+      setModalFocusItemId(options.focusId ?? null);
+      setCategoryModal(label);
+    },
+    [getItemsForCategory, triggerToast]
+  );
+
+  const closeCategoryModal = useCallback(() => {
+    setCategoryModal(null);
+    setModalFocusItemId(null);
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const handleKeyDown = (event) => {
+      if (event.key !== "Escape") return;
+      if (selectedItem) {
+        setSelectedItem(null);
+        return;
+      }
+      if (detailItem) {
+        setDetailItem(null);
+        return;
+      }
+      if (categoryModal) {
+        closeCategoryModal();
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [categoryModal, closeCategoryModal, detailItem, selectedItem]);
+
+  const modalItems = useMemo(
+    () => (categoryModal ? getItemsForCategory(categoryModal) : []),
+    [categoryModal, getItemsForCategory]
+  );
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (!categoryModal || !modalFocusItemId) return;
+    const frame = window.requestAnimationFrame(() => {
+      const element = document.querySelector(
+        `[data-pos-item-id="${modalFocusItemId}"]`
+      );
+      if (element && "scrollIntoView" in element) {
+        element.scrollIntoView({ block: "center", behavior: "smooth" });
+      }
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [categoryModal, modalFocusItemId]);
 
   const handleSelectPortion = (item) => {
     const portions = getValidPortions(item);
@@ -469,7 +600,7 @@ export default function Order() {
     triggerToast(`${name} added to cart`);
   };
 
-  const renderItems = (items) => {
+  const renderItems = (items, highlightedId = null) => {
     const visibleItems = (items || []).filter((item) => item.isAvailable !== false);
     if (visibleItems.length === 0) {
       return (
@@ -480,110 +611,185 @@ export default function Order() {
     }
 
     return (
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-        {visibleItems.map((item) => (
-          <div
-            key={item.id}
-            className="group flex h-full flex-col justify-between rounded-xl border border-white/5 bg-[#0f1628] p-4 transition-all duration-200 hover:border-[#f26b30] hover:bg-[#f26b30]/10"
-            onClick={() => handleSelectPortion(item)}
-          >
-            <div className="flex flex-1 flex-col gap-3">
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        {visibleItems.map((item) => {
+          const isHighlighted = highlightedId === item.id;
+          const portionOptions = getValidPortions(item);
+          const multiplePortions = portionOptions.length > 1;
+          const basePrice = portionOptions.length > 0
+            ? Math.min(...portionOptions.map(([, value]) => value))
+            : resolvePrice(item);
+          const priceLabel = multiplePortions
+            ? `From £${basePrice.toFixed(2)}`
+            : `£${basePrice.toFixed(2)}`;
+          return (
+            <div
+              key={item.id}
+              data-pos-item-id={item.id}
+              className={`flex h-full cursor-pointer flex-col gap-3 rounded-2xl border bg-[#0f1628] p-4 transition ${
+                isHighlighted
+                  ? "border-[#f26b30] ring-2 ring-[#f26b30]/60"
+                  : "border-white/10 hover:border-[#f26b30]"
+              }`}
+              onClick={() => handleSelectPortion(item)}
+            >
               <div className="flex items-start justify-between gap-3">
                 <div>
-                  <h4 className="text-base font-semibold tracking-tight text-white">
-                    {item.name}
-                  </h4>
-                  <p className="mt-1 text-sm text-slate-400">{item.description}</p>
+                  <p className="text-sm font-semibold text-white">{item.name}</p>
+                  <p className="mt-1 text-[11px] uppercase tracking-[0.18em] text-slate-400">
+                    {multiplePortions ? "Multiple portions" : "Single portion"}
+                  </p>
                 </div>
-                <span className="rounded-full bg-[#f26b30]/10 px-3 py-1 text-sm font-semibold text-[#f26b30]">
-                  £
-                  {(() => {
-                    const validPrices = Object.values(item.price || {})
-                      .map(Number)
-                      .filter((p) => !isNaN(p) && p > 0);
-                    const price = validPrices.length > 0 ? validPrices[0] : 0;
-                    return price.toFixed(2);
-                  })()}
+                <span className="rounded-full bg-[#f26b30]/10 px-3 py-1 text-xs font-semibold text-[#f26b30]">
+                  {priceLabel}
                 </span>
               </div>
-              <div className="flex flex-wrap items-center justify-between text-xs text-slate-400">
+              <div className="flex items-center justify-between text-[11px] text-slate-400">
                 <span className="flex items-center gap-1">
-                  🌶️<span className="uppercase tracking-wide">{item.spicyLevel || "mild"}</span>
+                  🌶️{item.spicyLevel || "Mild"}
                 </span>
                 <span className="flex items-center gap-1">
-                  ⚠️<span>{(item.allergens || []).join(", ") || "No allergens"}</span>
+                  ⚠️{(item.allergens || []).join(", ") || "No allergens"}
                 </span>
               </div>
+              <button
+                className="self-start rounded-full border border-white/10 px-3 py-1 text-[11px] font-medium text-slate-200 transition hover:border-[#f26b30] hover:text-white"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  setDetailItem(item);
+                }}
+              >
+                View ingredients
+              </button>
             </div>
-            <button
-              className={`${actionButtonClass} mt-4 w-full justify-center`}
-              onClick={(event) => {
-                event.stopPropagation();
-                handleSelectPortion(item);
-              }}
-            >
-              Select
-            </button>
-          </div>
-        ))}
+          );
+        })}
       </div>
     );
   };
 
   const renderCategory = (categoryName, items) => {
     const availableCount = (items || []).filter((item) => item.isAvailable !== false).length;
-    const isExpanded = expandedCategory === categoryName;
+    if (availableCount === 0) return null;
+    const isActive = expandedCategory === categoryName;
 
     return (
-      <div
+      <button
         key={categoryName}
-        className={`mb-4 rounded-2xl border backdrop-blur transition-colors ${
-          isExpanded ? "border-white/20 bg-[#111b30]" : "border-white/10 bg-[#0f1628]/70"
+        className={`rounded-2xl border px-4 py-5 text-left transition ${
+          isActive
+            ? "border-[#f26b30] bg-[#f26b30]/10 text-white"
+            : "border-white/10 bg-[#0f1628]/70 text-slate-200 hover:border-[#f26b30]"
         }`}
+        onClick={() => openCategoryModal(categoryName)}
       >
-        <button
-          className={`flex w-full items-center justify-between gap-3 rounded-2xl px-4 py-3 text-left text-sm font-semibold tracking-wide transition ${
-            isExpanded
-              ? "bg-[#f26b30] text-white shadow-inner shadow-[#f26b30]/40"
-              : "text-slate-200 hover:bg-white/10"
-          }`}
-          onClick={() => handleCategoryClick(categoryName)}
-        >
-          <span className="text-base">{categoryName}</span>
-          <span className="rounded-full bg-black/30 px-3 py-1 text-xs font-medium uppercase tracking-[0.2em]">
-            {availableCount}
-          </span>
-        </button>
-
-        {isExpanded && (
-          <div className="px-4 pb-4 pt-3">{renderItems(items)}</div>
-        )}
-      </div>
+        <span className="block text-sm font-semibold uppercase tracking-[0.25em]">{availableCount} dishes</span>
+        <span className="mt-2 block text-lg font-semibold">{categoryName}</span>
+      </button>
     );
   };
 
+  const printOnlineOrderTicket = (order) => {
+    if (typeof window === "undefined") return;
+    const receiptWindow = window.open("", "_blank");
+    if (!receiptWindow) return;
+
+    const orderDate = order.acceptedAt || order.createdAt || new Date().toISOString();
+    const displayDate = new Date(orderDate).toLocaleString();
+    const itemsHtml = (order.items || [])
+      .map((item) => {
+        const portionLabel = item.portion
+          ? ` (${formatPortionLabel(item.portion)})`
+          : "";
+        const lineTotal = Number(item.price || 0) * Number(item.quantity || 0);
+        return `${item.quantity} × ${item.name}${portionLabel} - £${lineTotal.toFixed(2)}`;
+      })
+      .join("<br/>");
+
+    const customerInfo = order.customer || {};
+    const total = Number(order.total || 0).toFixed(2);
+
+    const content = `
+      <html>
+        <head>
+          <title>Online Order - ${order.orderId}</title>
+          <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+          <style>
+            body { font-family: monospace; padding: 8px; font-size: 12px; width: 80mm; margin: 0 auto; }
+            h1 { text-align: center; margin-bottom: 4px; font-size: 18px; }
+            .center { text-align: center; }
+            .line { border-top: 1px dashed #000; margin: 5px 0; }
+            .total { font-size: 14px; font-weight: bold; text-align: right; }
+            .order-number { font-size: 16px; font-weight: bold; text-align: center; margin: 4px 0; }
+            .section-title { font-weight: bold; margin-top: 6px; }
+          </style>
+        </head>
+        <body>
+          <h1>The MoMos</h1>
+          <div class="center">Online Order Ticket</div>
+          <div class="line"></div>
+          <div class="order-number">#${order.orderId}</div>
+          <div>Date: ${displayDate}</div>
+          <div>Payment: ${order.paymentMethod || "Cash"}</div>
+          <div class="line"></div>
+          <div class="section-title">Customer</div>
+          <div>Name: ${customerInfo.name || "-"}</div>
+          <div>Phone: ${customerInfo.phone || "-"}</div>
+          <div>Address: ${customerInfo.address || "-"}</div>
+          <div>Postal: ${customerInfo.postalCode || "-"}</div>
+          ${customerInfo.notes ? `<div>Notes: ${customerInfo.notes}</div>` : ""}
+          <div class="line"></div>
+          ${itemsHtml}
+          <div class="line"></div>
+          <div class="total">Total: £${total}</div>
+          <div class="line"></div>
+          <div class="center">Accept & Serve Hot!</div>
+        </body>
+      </html>
+    `;
+
+    receiptWindow.document.write(content);
+    receiptWindow.document.close();
+    receiptWindow.focus();
+    receiptWindow.print();
+    receiptWindow.close();
+  };
+
   const acceptOnlineOrder = async (orderId) => {
-    await fetch(`/api/saveOrder/accept`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ orderId }),
-    });
-    setIncomingOnlineOrders(
-      incomingOnlineOrders.filter((o) => o.orderId !== orderId)
-    );
-    setShowOnlineOrderModal(false);
-    // Print logic here
-    alert("Order accepted and sent to printer!");
+    try {
+      const response = await fetch(`/api/saveOrder/accept`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ orderId }),
+      });
+      const result = await response.json();
+      if (!result.success) {
+        throw new Error(result.error || "Unable to accept order");
+      }
+
+      setIncomingOnlineOrders((prev) => {
+        const remaining = prev.filter((o) => o.orderId !== orderId);
+        setShowOnlineOrderModal(remaining.length > 0);
+        return remaining;
+      });
+
+      triggerToast(`Online order #${orderId} accepted`);
+      printOnlineOrderTicket(result.order || { orderId, items: [] });
+    } catch (error) {
+      console.error("Accept order failed", error);
+      alert(`Failed to accept order: ${error.message}`);
+    }
   };
 
   const clearSearch = () => {
     setSearchTerm("");
-    setExpandedCategory(null);
+    closeCategoryModal();
+    setExpandedCategory(findFirstAvailableCategory(menu));
   };
 
   const handleSearchItemSelect = (result) => {
-    setExpandedCategory(result.categoryKey);
     handleSelectPortion(result.item);
+    setSearchTerm("");
   };
 
   return (
@@ -656,23 +862,40 @@ export default function Order() {
                       No menu items found for "{searchTerm}".
                     </p>
                   ) : (
-                    searchResults.map((result, idx) => (
-                      <div
-                        key={`${result.item.id}-${idx}`}
-                        className="flex items-center justify-between gap-3 rounded-xl border border-white/10 bg-[#0f1628] px-4 py-3 text-sm shadow-sm shadow-black/10 transition hover:border-[#f26b30]"
-                      >
-                        <div>
-                          <p className="font-medium text-white">{result.item.name}</p>
-                          <p className="text-xs text-slate-400">{result.categoryKey}</p>
-                        </div>
+                    searchResults.map((result, idx) => {
+                      const portionOptions = getValidPortions(result.item);
+                      const multiplePortions = portionOptions.length > 1;
+                      const basePrice = portionOptions.length > 0
+                        ? Math.min(...portionOptions.map(([, value]) => value))
+                        : resolvePrice(result.item);
+                      const priceLabel = multiplePortions
+                        ? `From £${basePrice.toFixed(2)}`
+                        : `£${basePrice.toFixed(2)}`;
+                      return (
                         <button
-                          className={actionButtonClass}
+                          key={`${result.item.id}-${idx}`}
+                          type="button"
                           onClick={() => handleSearchItemSelect(result)}
+                          className="flex w-full flex-col gap-2 rounded-xl border border-white/10 bg-[#0f1628] px-4 py-3 text-left text-sm shadow-sm shadow-black/10 transition hover:border-[#f26b30] sm:flex-row sm:items-center sm:justify-between"
                         >
-                          Select
+                          <div>
+                            <p className="font-medium text-white">{result.item.name}</p>
+                            <p className="text-xs text-slate-400">{result.categoryKey}</p>
+                            <p className="mt-1 text-[11px] uppercase tracking-[0.18em] text-slate-500">
+                              {multiplePortions ? "Multiple portions" : "Single portion"}
+                            </p>
+                          </div>
+                          <div className="flex items-center gap-2 self-start sm:self-auto">
+                            <span className="rounded-full bg-[#f26b30]/10 px-3 py-1 text-xs font-semibold text-[#f26b30]">
+                              {priceLabel}
+                            </span>
+                            <span className="text-[11px] uppercase tracking-[0.2em] text-slate-400">
+                              Tap to add
+                            </span>
+                          </div>
                         </button>
-                      </div>
-                    ))
+                      );
+                    })
                   )}
                 </div>
               )}
@@ -726,32 +949,38 @@ export default function Order() {
               </div>
             </div>
 
-            <div className="space-y-4">
+            <div className="rounded-3xl border border-white/10 bg-white/5 p-5 shadow-lg shadow-black/30 backdrop-blur">
+              <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <h3 className="text-lg font-semibold text-white">Categories</h3>
+                  <p className="text-xs text-slate-400">Tap a category to focus; items open in a popup for speed.</p>
+                </div>
+                <span className="text-xs uppercase tracking-[0.35em] text-slate-500">
+                  {availableCategoryCount} groups
+                </span>
+              </div>
+
               {menuLoading ? (
-                <div className="flex items-center gap-3 rounded-2xl border border-white/10 bg-[#0f1628]/80 px-4 py-3 text-sm text-slate-300">
+                <div className="mt-6 flex items-center gap-3 rounded-2xl border border-white/10 bg-[#0f1628]/80 px-4 py-3 text-sm text-slate-300">
                   <span className="h-3 w-3 animate-spin rounded-full border-2 border-white/20 border-t-[#f26b30]"></span>
                   Loading menu…
                 </div>
               ) : menuError ? (
-                <div className="rounded-2xl border border-red-500/40 bg-red-500/10 px-4 py-4 text-sm text-red-200">
+                <div className="mt-6 rounded-2xl border border-red-500/40 bg-red-500/10 px-4 py-4 text-sm text-red-200">
                   <p className="mb-3 font-semibold">We could not load the menu.</p>
-                  <p className="mb-4 text-xs text-red-100/80">{menuError}</p>
-                  <button className={actionButtonClass} onClick={loadMenu}>
+                  <p className="text-xs text-red-100/80">{menuError}</p>
+                  <button className={`${actionButtonClass} mt-4`} onClick={loadMenu}>
                     Try again
                   </button>
                 </div>
-              ) : Object.keys(menu).length === 0 ? (
-                <p className="rounded-2xl border border-white/10 bg-[#0f1628]/60 px-4 py-4 text-sm italic text-slate-400">
+              ) : categories.length === 0 ? (
+                <p className="mt-6 rounded-2xl border border-white/10 bg-[#0f1628]/60 px-4 py-4 text-sm italic text-slate-400">
                   No menu items available. Import the latest menu from the admin console to get started.
                 </p>
               ) : (
-                Object.entries(menu).map(([catName, catData]) =>
-                  Array.isArray(catData)
-                    ? renderCategory(catName, catData)
-                    : Object.entries(catData).map(([subCat, items]) =>
-                        renderCategory(`${catName} - ${subCat}`, items)
-                      )
-                )
+                <div className="mt-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                  {categories.map(({ label, items }) => renderCategory(label, items))}
+                </div>
               )}
             </div>
           </div>
@@ -938,6 +1167,76 @@ export default function Order() {
         </section>
       </main>
 
+        {categoryModal && (
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur"
+            onClick={closeCategoryModal}
+            role="dialog"
+            aria-modal="true"
+          >
+            <div
+              className="w-full max-w-5xl rounded-[32px] border border-white/10 bg-[#101828] p-6 text-slate-100 shadow-2xl shadow-black/40"
+              onClick={(event) => event.stopPropagation()}
+            >
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                <div>
+                  <p className="text-xs uppercase tracking-[0.35em] text-[#f26b30]">Focused view</p>
+                  <h3 className="text-2xl font-semibold text-white">{categoryModal}</h3>
+                </div>
+                <button
+                  className={`${subtleButtonClass} mt-4 sm:mt-0`}
+                  onClick={closeCategoryModal}
+                >
+                  Close
+                </button>
+              </div>
+              <div className="mt-6 max-h-[65vh] overflow-y-auto pr-1">
+                {renderItems(modalItems, modalFocusItemId)}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {detailItem && (
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur"
+            onClick={() => setDetailItem(null)}
+            role="dialog"
+            aria-modal="true"
+          >
+            <div
+              className="w-full max-w-md rounded-[28px] border border-white/10 bg-[#101828] p-6 text-slate-100 shadow-2xl shadow-black/40"
+              onClick={(event) => event.stopPropagation()}
+            >
+              <h3 className="text-lg font-semibold text-white">{detailItem.name}</h3>
+              <p className="mt-2 text-sm leading-relaxed text-slate-300">
+                {detailItem.description?.trim() || detailItem.ingredients?.join(", ") || "Ask the kitchen for the latest prep."}
+              </p>
+              <div className="mt-4 grid gap-2 text-xs text-slate-400">
+                <span>🌶️ {detailItem.spicyLevel || "Mild"}</span>
+                <span>⚠️ {(detailItem.allergens || []).join(", ") || "No listed allergens"}</span>
+              </div>
+              <div className="mt-6 flex flex-col gap-2 sm:flex-row">
+                <button
+                  className="inline-flex flex-1 items-center justify-center rounded-full bg-[#f26b30] px-5 py-2 text-sm font-semibold text-white shadow-lg shadow-[#f26b30]/25 transition hover:bg-[#ff7a3e]"
+                  onClick={() => {
+                    handleSelectPortion(detailItem);
+                    setDetailItem(null);
+                  }}
+                >
+                  Add to cart
+                </button>
+                <button
+                  className="inline-flex flex-1 items-center justify-center rounded-full border border-white/10 px-5 py-2 text-sm font-medium text-slate-200 transition hover:border-[#f26b30] hover:text-white"
+                  onClick={() => setDetailItem(null)}
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
       {isMobileViewport && (
         <button
           className={`fixed bottom-6 right-4 z-40 inline-flex items-center gap-2 rounded-full border border-white/10 bg-[#f26b30] px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-black/40 transition ${
@@ -950,8 +1249,16 @@ export default function Order() {
       )}
 
       {selectedItem && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur">
-          <div className="w-full max-w-md rounded-3xl border border-white/10 bg-[#101828] p-6 text-center text-slate-100 shadow-2xl shadow-black/40">
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur"
+          onClick={() => setSelectedItem(null)}
+          role="dialog"
+          aria-modal="true"
+        >
+          <div
+            className="w-full max-w-md rounded-3xl border border-white/10 bg-[#101828] p-6 text-center text-slate-100 shadow-2xl shadow-black/40"
+            onClick={(event) => event.stopPropagation()}
+          >
             <h3 className="text-lg font-semibold text-white">
               Choose portion for {selectedItem.name}
             </h3>

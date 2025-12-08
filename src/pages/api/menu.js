@@ -3,6 +3,34 @@ import { promises as fs } from "fs";
 import dbConnect from "../../lib/mongodb";
 import Menu from "../../models/Menu";
 
+const MENU_CACHE_TTL = 1000 * 30; // 30 seconds
+
+const globalMenuCache = global.__momosMenuCache || {
+  data: null,
+  expiresAt: 0,
+};
+
+if (!global.__momosMenuCache) {
+  global.__momosMenuCache = globalMenuCache;
+}
+
+function getCachedMenu() {
+  if (globalMenuCache.data && globalMenuCache.expiresAt > Date.now()) {
+    return globalMenuCache.data;
+  }
+  return null;
+}
+
+function setCachedMenu(menu) {
+  globalMenuCache.data = menu;
+  globalMenuCache.expiresAt = Date.now() + MENU_CACHE_TTL;
+}
+
+function invalidateMenuCache() {
+  globalMenuCache.data = null;
+  globalMenuCache.expiresAt = 0;
+}
+
 function normalizeAllergens(value) {
   if (Array.isArray(value)) return value.filter(Boolean);
   if (!value) return [];
@@ -59,12 +87,17 @@ export default async function handler(req, res) {
   try {
     switch (req.method) {
       case "GET": {
-        let items = await Menu.find({});
+        const cached = getCachedMenu();
+        if (cached) {
+          return res.status(200).json({ success: true, menu: cached, cache: "hit" });
+        }
+
+        let items = await Menu.find({}).sort({ category: 1, name: 1 }).lean();
 
         if (items.length === 0) {
           try {
             await seedMenuFromJson();
-            items = await Menu.find({});
+            items = await Menu.find({}).sort({ category: 1, name: 1 }).lean();
           } catch (seedError) {
             console.error("Menu seed failed:", seedError);
           }
@@ -75,7 +108,7 @@ export default async function handler(req, res) {
           const category = item.category || "Uncategorized";
           if (!menu[category]) menu[category] = [];
           menu[category].push({
-            id: item._id.toString(),
+            id: item._id?.toString(),
             name: item.name,
             description: item.description,
             price: item.price,
@@ -85,6 +118,8 @@ export default async function handler(req, res) {
             isAvailable: item.isAvailable !== false,
           });
         });
+
+        setCachedMenu(menu);
 
         return res.status(200).json({ success: true, menu });
       }
@@ -110,6 +145,7 @@ export default async function handler(req, res) {
         };
 
         const newItem = await Menu.create(payload);
+        invalidateMenuCache();
         return res.status(201).json({ success: true, item: newItem });
       }
 
@@ -157,6 +193,7 @@ export default async function handler(req, res) {
         }
 
         await Menu.findByIdAndUpdate(itemId, { $set: update });
+        invalidateMenuCache();
         return res.status(200).json({ success: true });
       }
 
@@ -164,6 +201,7 @@ export default async function handler(req, res) {
         const { itemId, password } = req.body;
         if (itemId) {
           await Menu.findByIdAndDelete(itemId);
+          invalidateMenuCache();
           return res.status(200).json({ success: true });
         }
 
@@ -172,6 +210,7 @@ export default async function handler(req, res) {
         }
 
         await Menu.deleteMany({});
+        invalidateMenuCache();
         return res.status(200).json({ success: true });
       }
 
