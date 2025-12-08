@@ -19,7 +19,6 @@ export default function Order() {
   const [isPaid, setIsPaid] = useState(false);
   const [selectedItem, setSelectedItem] = useState(null);
   const [discountPercent, setDiscountPercent] = useState("");
-
   const [orderType, setOrderType] = useState("Dine In");
   const [customer, setCustomer] = useState({
     name: "",
@@ -31,13 +30,12 @@ export default function Order() {
 
   const [generalItemName, setGeneralItemName] = useState("");
   const [generalItemPrice, setGeneralItemPrice] = useState("");
-
   const [incomingOnlineOrders, setIncomingOnlineOrders] = useState([]);
   const [showOnlineOrderModal, setShowOnlineOrderModal] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
-
   const [menuLoading, setMenuLoading] = useState(false);
   const [menuError, setMenuError] = useState(null);
+  const [navHidden, setNavHidden] = useState(false);
 
   const categories = useMemo(() => {
     const list = [];
@@ -71,6 +69,8 @@ export default function Order() {
     typeof window !== "undefined" ? window.innerWidth : 1440
   );
   const cartInitRef = useRef(false);
+  const lastScrollYRef = useRef(0);
+  const cartItemsListRef = useRef(null);
 
   const triggerToast = useCallback((message) => {
     if (!message) return;
@@ -185,6 +185,27 @@ export default function Order() {
     return () => window.removeEventListener("resize", handleResize);
   }, []);
 
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const handleScroll = () => {
+      const current = window.scrollY;
+      const previous = lastScrollYRef.current;
+
+      if (current < 120) {
+        setNavHidden(false);
+      } else if (current > previous + 12 && current > 160) {
+        setNavHidden(true);
+      } else if (current < previous - 12) {
+        setNavHidden(false);
+      }
+
+      lastScrollYRef.current = current;
+    };
+
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
+
   // Poll for new online orders every 5 seconds
   useEffect(() => {
     const interval = setInterval(async () => {
@@ -193,7 +214,6 @@ export default function Order() {
       if (data.orders && data.orders.length > 0) {
         setIncomingOnlineOrders(data.orders);
         setShowOnlineOrderModal(true);
-        // Play ringing sound
         const audio = new Audio("/assets/ringtone.mp3");
         audio.play();
       }
@@ -255,19 +275,19 @@ export default function Order() {
   const hasActiveSearch = searchTerm.trim().length > 0;
 
   const inputClass =
-    "w-full rounded-lg border border-white/15 bg-[#0f192d] px-3 py-2 text-sm text-white placeholder:text-slate-500 caret-[#f26b30] focus:border-[#f26b30] focus:outline-none focus:ring-2 focus:ring-[#f26b30]/40";
+    "w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 caret-[#f26b30] focus:border-[#f26b30] focus:outline-none focus:ring-2 focus:ring-[#f26b30]/30";
   const actionButtonClass =
-    "inline-flex items-center justify-center gap-2 rounded-full bg-[#f26b30] px-5 py-2 text-sm font-semibold text-white shadow-lg shadow-[#f26b30]/20 transition hover:bg-[#ff773c] focus:outline-none disabled:cursor-not-allowed disabled:opacity-60";
+    "inline-flex items-center justify-center gap-2 rounded-full bg-[#f26b30] px-5 py-2 text-sm font-semibold text-white shadow-sm shadow-[#f26b30]/20 transition hover:bg-[#ff773c] focus:outline-none disabled:cursor-not-allowed disabled:opacity-60";
   const subtleButtonClass =
-    "inline-flex items-center justify-center gap-2 rounded-full border border-white/10 px-4 py-2 text-sm font-medium text-slate-200 transition hover:border-[#f26b30] hover:text-white focus:outline-none disabled:cursor-not-allowed disabled:opacity-60";
+    "inline-flex items-center justify-center gap-2 rounded-full border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 transition hover:border-[#f26b30] hover:text-[#f26b30] focus:outline-none disabled:cursor-not-allowed disabled:opacity-60";
   const buildTogglePillClass = (isActive) =>
-    `rounded-full border px-3 py-1 text-xs font-semibold transition ${
+    `rounded-full border px-3 py-1 text-xs font-medium tracking-[0.12em] transition ${
       isActive
-        ? "border-[#f26b30] bg-[#f26b30]/15 text-[#fcd7ba]"
-        : "border-white/10 text-slate-300 hover:border-[#f26b30] hover:text-white"
+        ? "border-[#f26b30] bg-[#f26b30]/20 text-[#d44d08]"
+        : "border-slate-300 text-slate-500 hover:border-[#f26b30] hover:text-[#f26b30]"
     }`;
   const paymentOptions = ["Cash", "Card"];
-  const quickDiscountOptions = [0, 5, 10];
+  const quickDiscountOptions = [0, 5, 10, 15, 20];
 
   useEffect(() => {
     if (searchResults.length > 0) {
@@ -339,6 +359,17 @@ export default function Order() {
     );
   };
 
+  const focusCartItems = useCallback(() => {
+    if (isMobileViewport) {
+      setShowCart(true);
+    }
+    requestAnimationFrame(() => {
+      if (cartItemsListRef.current) {
+        cartItemsListRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
+      }
+    });
+  }, [isMobileViewport, setShowCart]);
+
   const removeItem = (item) => {
     setCart((prev) =>
       prev.filter((c) => !(c.id === item.id && c.portion === item.portion))
@@ -352,6 +383,8 @@ export default function Order() {
     setCart([]);
     setDiscountPercent("");
     setIsPaid(false);
+    setGeneralItemName("");
+    setGeneralItemPrice("");
   };
 
   const getValidPortions = (item) =>
@@ -634,14 +667,14 @@ export default function Order() {
     const visibleItems = (items || []).filter((item) => item.isAvailable !== false);
     if (visibleItems.length === 0) {
       return (
-        <p className="rounded-lg border border-dashed border-white/10 bg-black/10 p-3 text-sm text-slate-400">
+        <p className="rounded-lg border border-dashed border-slate-200 bg-[#f9fafb] p-3 text-sm text-slate-600">
           No available items in this category.
         </p>
       );
     }
 
     return (
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+      <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
         {visibleItems.map((item) => {
           const isHighlighted = highlightedId === item.id;
           const portionOptions = getValidPortions(item);
@@ -656,34 +689,35 @@ export default function Order() {
             <div
               key={item.id}
               data-pos-item-id={item.id}
-              className={`flex h-full cursor-pointer flex-col gap-3 rounded-2xl border bg-[#0f1628] p-4 transition ${
+              className={`group flex h-full cursor-pointer flex-col gap-2 rounded-xl border p-3 transition ${
                 isHighlighted
-                  ? "border-[#f26b30] ring-2 ring-[#f26b30]/60"
-                  : "border-white/10 hover:border-[#f26b30]"
+                  ? "border-[#f26b30] bg-[#fff2e6] shadow-sm shadow-[#f26b30]/20"
+                  : "border-slate-200 bg-[#fffaf4] hover:border-[#f26b30] hover:bg-[#fff2e6] hover:shadow-sm"
               }`}
               onClick={() => handleSelectPortion(item)}
             >
               <div className="flex items-start justify-between gap-3">
-                <div>
-                  <p className="text-sm font-semibold text-white">{item.name}</p>
-                  <p className="mt-1 text-[11px] uppercase tracking-[0.18em] text-slate-400">
+                <div className="space-y-1">
+                  <p className="text-sm font-semibold text-slate-900">{item.name}</p>
+                  <p className="text-xs text-slate-500">
                     {multiplePortions ? "Multiple portions" : "Single portion"}
                   </p>
                 </div>
-                <span className="rounded-full bg-[#f26b30]/10 px-3 py-1 text-xs font-semibold text-[#f26b30]">
+                <span className="rounded-md bg-white px-2 py-1 text-xs font-semibold text-slate-700 shadow-sm shadow-white/40">
                   {priceLabel}
                 </span>
               </div>
-              <div className="flex items-center justify-between text-[11px] text-slate-400">
-                <span className="flex items-center gap-1">
-                  🌶️{item.spicyLevel || "Mild"}
-                </span>
-                <span className="flex items-center gap-1">
-                  ⚠️{(item.allergens || []).join(", ") || "No allergens"}
+              <div className="flex items-center justify-between text-[11px] text-slate-500">
+                <span>Spice: {item.spicyLevel || "Mild"}</span>
+                <span>
+                  {(item.allergens || []).length > 0
+                    ? `Allergens: ${(item.allergens || []).join(", ")}`
+                    : "Allergens: none"}
                 </span>
               </div>
               <button
-                className="self-start rounded-full border border-white/10 px-3 py-1 text-[11px] font-medium text-slate-200 transition hover:border-[#f26b30] hover:text-white"
+                type="button"
+                className="self-start text-xs font-medium text-slate-600 transition hover:text-[#f26b30]"
                 onClick={(event) => {
                   event.stopPropagation();
                   setDetailItem(item);
@@ -706,15 +740,20 @@ export default function Order() {
     return (
       <button
         key={categoryName}
-        className={`rounded-2xl border px-4 py-5 text-left transition ${
+        className={`flex h-full flex-col justify-between gap-2 rounded-xl border px-4 py-4 text-left transition ${
           isActive
-            ? "border-[#f26b30] bg-[#f26b30]/10 text-white"
-            : "border-white/10 bg-[#0f1628]/70 text-slate-200 hover:border-[#f26b30]"
+            ? "border-[#f26b30] bg-[#fff1e3] text-slate-900 shadow-sm shadow-[#f26b30]/25"
+            : "border-slate-200 bg-[#eef3ff] text-slate-700 hover:border-[#f26b30] hover:bg-[#ffeede] hover:text-[#f26b30] hover:shadow-sm"
         }`}
         onClick={() => openCategoryModal(categoryName)}
       >
-        <span className="block text-sm font-semibold uppercase tracking-[0.25em]">{availableCount} dishes</span>
-        <span className="mt-2 block text-lg font-semibold">{categoryName}</span>
+        <span className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
+          {availableCount} dishes
+        </span>
+        <span className="text-base font-semibold leading-tight text-slate-900">
+          {categoryName}
+        </span>
+        <span className="text-xs font-medium text-slate-500">Tap to browse</span>
       </button>
     );
   };
@@ -837,16 +876,16 @@ export default function Order() {
 
   return (
     <StaffGate>
-      <div className="min-h-screen bg-[#0b1120] text-slate-100">
-        <Navbar />
+      <div className="min-h-screen bg-[#f3f4f6] text-slate-900">
+        <Navbar scheme="light" isHidden={navHidden} />
         <main className="mx-auto flex max-w-7xl flex-col gap-6 px-4 py-8 pb-56 sm:px-6 lg:px-8 lg:pb-12">
         <header className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div>
             <p className="text-xs uppercase tracking-[0.5em] text-[#f26b30]">Live POS</p>
-            <h1 className="mt-2 text-3xl font-semibold leading-tight text-white sm:text-4xl">
+            <h1 className="mt-2 text-3xl font-semibold leading-tight text-slate-900 sm:text-4xl">
               The MoMos POS System
             </h1>
-            <p className="mt-2 text-sm text-slate-400">
+            <p className="mt-2 text-sm text-slate-600">
               Manage dine-in, takeaway, and delivery tickets with a branded control hub built for speed.
             </p>
           </div>
@@ -868,7 +907,7 @@ export default function Order() {
 
         <section className="grid gap-6 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
           <div className="flex flex-col gap-6">
-            <div className="rounded-3xl border border-white/10 bg-white/5 p-5 shadow-lg shadow-black/30 backdrop-blur">
+            <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
               <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
                 <div className="relative flex-1">
                   <input
@@ -902,7 +941,7 @@ export default function Order() {
                     Search Results
                   </h3>
                   {searchResults.length === 0 ? (
-                    <p className="rounded-lg border border-white/10 bg-black/20 px-4 py-3 text-sm text-slate-400">
+                    <p className="rounded-lg border border-slate-200 bg-[#f9fafb] px-4 py-3 text-sm text-slate-600">
                       No menu items found for "{searchTerm}".
                     </p>
                   ) : (
@@ -920,20 +959,30 @@ export default function Order() {
                           key={`${result.item.id}-${idx}`}
                           type="button"
                           onClick={() => handleSearchItemSelect(result)}
-                          className="flex w-full flex-col gap-2 rounded-xl border border-white/10 bg-[#0f1628] px-4 py-3 text-left text-sm shadow-sm shadow-black/10 transition hover:border-[#f26b30] sm:flex-row sm:items-center sm:justify-between"
+                          className="flex w-full flex-col gap-2 rounded-xl border border-slate-200 bg-[#fffaf4] px-4 py-3 text-left text-sm shadow-sm transition hover:border-[#f26b30] hover:bg-[#fff2e6] sm:flex-row sm:items-center sm:justify-between"
                         >
                           <div>
-                            <p className="font-medium text-white">{result.item.name}</p>
-                            <p className="text-xs text-slate-400">{result.categoryKey}</p>
+                            <p className="font-medium text-slate-900">{result.item.name}</p>
+                            <p className="text-xs text-slate-500">{result.categoryKey}</p>
                             <p className="mt-1 text-[11px] uppercase tracking-[0.18em] text-slate-500">
                               {multiplePortions ? "Multiple portions" : "Single portion"}
                             </p>
                           </div>
-                          <div className="flex items-center gap-2 self-start sm:self-auto">
-                            <span className="rounded-full bg-[#f26b30]/10 px-3 py-1 text-xs font-semibold text-[#f26b30]">
+                          <div className="flex flex-wrap items-center gap-2 self-start sm:self-auto">
+                            <span className="rounded-md bg-white px-3 py-1 text-xs font-semibold text-slate-700 shadow-sm shadow-white/40">
                               {priceLabel}
                             </span>
-                            <span className="text-[11px] uppercase tracking-[0.2em] text-slate-400">
+                            <button
+                              type="button"
+                              className="text-[11px] font-medium text-slate-600 transition hover:text-[#f26b30]"
+                              onClick={(event) => {
+                                event.stopPropagation();
+                                setDetailItem(result.item);
+                              }}
+                            >
+                              View ingredients
+                            </button>
+                            <span className="text-[11px] uppercase tracking-[0.2em] text-slate-500">
                               Tap to add
                             </span>
                           </div>
@@ -945,68 +994,44 @@ export default function Order() {
               )}
             </div>
 
-            <div className="rounded-3xl border border-white/10 bg-white/5 p-5 shadow-lg shadow-black/30 backdrop-blur">
+            <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
               <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
                 <div>
-                  <h3 className="text-lg font-semibold text-white">Categories</h3>
-                  <p className="text-xs text-slate-400">Tap a category to focus; items open in a popup for speed.</p>
+                  <h3 className="text-lg font-semibold text-slate-900">Categories</h3>
+                  <p className="text-xs text-slate-600">Tap a category to focus; items open in a popup for speed.</p>
                 </div>
                 <span className="text-xs uppercase tracking-[0.35em] text-slate-500">
                   {availableCategoryCount} groups
                 </span>
               </div>
 
-              {categories.length > 0 && (
-                <div className="mt-4 overflow-x-auto pb-2">
-                  <div className="flex gap-2">
-                    {categories.map(({ label, items }) => {
-                      const availableCount = (items || []).filter((item) => item.isAvailable !== false).length;
-                      if (availableCount === 0) return null;
-                      return (
-                        <button
-                          key={`quick-${label}`}
-                          type="button"
-                          onClick={() => openCategoryModal(label)}
-                          className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-[#10172d] px-4 py-2 text-xs font-medium uppercase tracking-[0.2em] text-slate-200 transition hover:border-[#f26b30] hover:text-white"
-                        >
-                          <span>{label}</span>
-                          <span className="rounded-full bg-[#f26b30]/15 px-2 py-0.5 text-[11px] font-semibold text-[#f26b30]">
-                            {availableCount}
-                          </span>
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
-
               {menuLoading ? (
-                <div className="mt-6 flex items-center gap-3 rounded-2xl border border-white/10 bg-[#0f1628]/80 px-4 py-3 text-sm text-slate-300">
-                  <span className="h-3 w-3 animate-spin rounded-full border-2 border-white/20 border-t-[#f26b30]"></span>
+                <div className="mt-6 flex items-center gap-3 rounded-2xl border border-slate-200 bg-[#f4f5f7] px-4 py-3 text-sm text-slate-600">
+                  <span className="h-3 w-3 animate-spin rounded-full border-2 border-slate-200 border-t-[#f26b30]"></span>
                   Loading menu…
                 </div>
               ) : menuError ? (
-                <div className="mt-6 rounded-2xl border border-red-500/40 bg-red-500/10 px-4 py-4 text-sm text-red-200">
+                <div className="mt-6 rounded-2xl border border-red-200 bg-red-50 px-4 py-4 text-sm text-red-700">
                   <p className="mb-3 font-semibold">We could not load the menu.</p>
-                  <p className="text-xs text-red-100/80">{menuError}</p>
+                  <p className="text-xs text-red-600/80">{menuError}</p>
                   <button className={`${actionButtonClass} mt-4`} onClick={loadMenu}>
                     Try again
                   </button>
                 </div>
               ) : categories.length === 0 ? (
-                <p className="mt-6 rounded-2xl border border-white/10 bg-[#0f1628]/60 px-4 py-4 text-sm italic text-slate-400">
+                <p className="mt-6 rounded-2xl border border-slate-200 bg-[#f9fafb] px-4 py-4 text-sm italic text-slate-600">
                   No menu items available. Import the latest menu from the admin console to get started.
                 </p>
               ) : (
-                <div className="mt-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                <div className="mt-6 grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
                   {categories.map(({ label, items }) => renderCategory(label, items))}
                 </div>
               )}
             </div>
 
-            <div className="rounded-3xl border border-white/10 bg-white/5 p-5 shadow-lg shadow-black/30 backdrop-blur">
+            <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
               <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
-                <h3 className="text-lg font-semibold text-white">Order Information</h3>
+                <h3 className="text-lg font-semibold text-slate-900">Order Information</h3>
                 <span className="text-xs uppercase tracking-[0.35em] text-slate-500">{orderType}</span>
               </div>
               <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
@@ -1049,55 +1074,126 @@ export default function Order() {
                   onChange={(e) => setCustomer({ ...customer, notes: e.target.value })}
                   className={`${inputClass} sm:col-span-2 lg:col-span-3`}
                 />
-                {paymentMethod === "Card" && (
-                  <div className="sm:col-span-2 lg:col-span-3 rounded-xl border border-[#f26b30]/30 bg-[#f26b30]/10 px-4 py-3 text-xs text-[#f6ceb5]">
-                    <p className="text-[#fbd7c1] font-semibold uppercase tracking-[0.2em]">Card order protocol</p>
-                    <p className="mt-1 text-[#fde5d7]/80">
-                      Call the customer straight away and take their card details securely over the phone. Do not store the card number in the system. Once payment is confirmed, tick "Payment received" so the receipt prints for the kitchen.
-                    </p>
-                  </div>
-                )}
               </div>
             </div>
           </div>
 
           <aside className="relative w-full lg:pl-2">
             <div
-                className={`fixed bottom-0 right-0 z-40 flex w-full max-h-[80vh] flex-col overflow-hidden rounded-t-3xl border border-white/10 bg-[#101828]/95 shadow-[0_-20px_60px_rgba(0,0,0,0.5)] backdrop-blur transition-transform duration-300 ease-out ${
+                className={`fixed bottom-0 right-0 z-40 flex w-full max-h-[90vh] flex-col overflow-y-auto rounded-t-3xl border border-slate-200 bg-white shadow-[0_-20px_40px_rgba(15,23,42,0.12)] transition-transform duration-300 ease-out ${
                   showCart ? "translate-y-0" : "translate-y-[calc(100%-4rem)]"
-                } lg:sticky lg:top-28 lg:bottom-auto lg:right-auto lg:max-h-[calc(100vh-6rem)] lg:w-full lg:translate-y-0 lg:rounded-3xl lg:shadow-2xl lg:transition-none`}
+                } lg:sticky lg:top-24 lg:bottom-auto lg:right-auto lg:max-h-[calc(100vh-4rem)] lg:w-full lg:translate-y-0 lg:overflow-hidden lg:rounded-3xl lg:shadow-xl lg:transition-none`}
             >
-              <div className="flex items-center justify-between border-b border-white/10 bg-white/10 px-5 py-4">
+              <header className="flex items-center justify-between border-b border-slate-200 bg-white px-5 py-4">
                 <div>
-                  <h3 className="text-lg font-semibold text-white">Cart</h3>
-                  <p className="text-xs text-slate-400">
+                  <h3 className="text-lg font-semibold text-slate-900">Cart</h3>
+                  <p className="text-xs text-slate-500">
                     {cartCount} item{cartCount === 1 ? "" : "s"} · £{total.toFixed(2)}
                   </p>
                 </div>
-                  <div className="flex items-center gap-2">
-                    <span className="hidden rounded-full border border-white/10 px-3 py-1 text-xs font-medium text-slate-400 lg:inline-flex">
-                      Ready
-                    </span>
-                    {cart.length > 0 && (
+                <div className="flex items-center gap-2">
+                  {cart.length > 0 && (
+                    <>
                       <button
-                        className="hidden items-center gap-1 rounded-full border border-white/10 px-3 py-1 text-xs font-semibold text-slate-200 transition hover:border-[#f26b30] hover:text-white lg:inline-flex"
+                        type="button"
+                        className="inline-flex items-center rounded-full border border-slate-200 px-3 py-1 text-xs font-medium text-slate-600 transition hover:border-[#f26b30] hover:text-[#f26b30]"
+                        onClick={focusCartItems}
+                      >
+                        View items
+                      </button>
+                      <button
+                        type="button"
+                        className="hidden text-xs font-semibold text-slate-600 underline-offset-4 transition hover:text-[#f26b30] hover:underline lg:inline-flex"
                         onClick={clearCart}
                       >
-                        ⟲ Clear
+                        Clear cart
                       </button>
-                    )}
-                    <button
-                      className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-white/10 text-slate-200 transition hover:border-[#f26b30] hover:text-white lg:hidden"
-                      onClick={() => setShowCart(false)}
-                      aria-label="Hide cart"
-                    >
-                      ✕
-                    </button>
+                    </>
+                  )}
+                  <button
+                    type="button"
+                    className="inline-flex items-center rounded-full border border-slate-300 px-3 py-1 text-xs font-medium text-slate-600 transition hover:border-[#f26b30] hover:text-[#f26b30] lg:hidden"
+                    onClick={() => setShowCart(false)}
+                    aria-label="Hide cart"
+                  >
+                    Hide
+                  </button>
+                </div>
+              </header>
+              <div className="flex flex-1 flex-col gap-3 px-5 py-4">
+                {cart.length === 0 ? (
+                  <div className="rounded-xl border border-dashed border-slate-200 bg-[#f9fafb] px-4 py-8 text-center text-sm text-slate-500">
+                    Cart is empty. Select a menu item to build the order.
                   </div>
-              </div>
+                ) : (
+                  <div className="space-y-2" ref={cartItemsListRef}>
+                    <div className="flex items-center justify-between text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-600">
+                      <span>View cart items</span>
+                      <span className="text-[10px] font-medium normal-case tracking-normal text-slate-400">
+                        {cartCount} item{cartCount === 1 ? "" : "s"}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between rounded-2xl border border-slate-200 bg-[#f5f7fa] px-3 py-2 text-[11px] text-slate-600 lg:hidden">
+                      <span>Review items before submitting.</span>
+                      <button
+                        type="button"
+                        className="rounded-full border border-slate-200 px-3 py-1 font-semibold text-slate-600 transition hover:border-[#f26b30] hover:text-[#f26b30]"
+                        onClick={clearCart}
+                      >
+                        Clear cart
+                      </button>
+                    </div>
+                    <div className="max-h-80 space-y-2 overflow-y-auto overflow-x-hidden pr-1 lg:max-h-[42vh]">
+                      {cart.map((item, i) => (
+                        <div
+                          key={`${item.id}-${item.portion}-${i}`}
+                          className="grid grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-2 border-b border-slate-200 pb-2 text-sm last:border-b-0"
+                        >
+                          <div className="min-w-0">
+                            <p className="truncate font-semibold text-slate-800">
+                              {item.name}
+                              {item.portion ? ` (${formatPortionLabel(item.portion)})` : ""}
+                            </p>
+                            <span className="text-[11px] text-slate-500">£{item.price.toFixed(2)} each</span>
+                          </div>
+                          <div className="flex items-center justify-center gap-1 rounded-md border border-slate-200 px-1 py-1">
+                            <button
+                              type="button"
+                              className="h-6 w-6 rounded border border-transparent text-slate-600 transition hover:border-slate-300 hover:text-[#f26b30]"
+                              onClick={() => updateQuantity(item, -1)}
+                              aria-label={`Decrease quantity of ${item.name}`}
+                            >
+                              −
+                            </button>
+                            <span className="min-w-[1.75rem] text-center font-semibold text-slate-900">
+                              {item.quantity}
+                            </span>
+                            <button
+                              type="button"
+                              className="h-6 w-6 rounded border border-transparent bg-[#f26b30] text-white transition hover:bg-[#ff773c]"
+                              onClick={() => updateQuantity(item, 1)}
+                              aria-label={`Increase quantity of ${item.name}`}
+                            >
+                              +
+                            </button>
+                          </div>
+                          <div className="flex flex-col items-end gap-1 text-right">
+                            <span className="font-semibold text-slate-900">£{(item.price * item.quantity).toFixed(2)}</span>
+                            <button
+                              type="button"
+                              className="text-[11px] font-medium text-slate-500 transition hover:text-[#f26b30]"
+                              onClick={() => removeItem(item)}
+                            >
+                              Remove
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
 
-              <div className="flex-1 space-y-4 overflow-y-auto px-5 py-4">
-                <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                <div className="flex flex-col gap-2 rounded-xl border border-slate-200 bg-[#f9fafb] px-3 py-3 sm:flex-row sm:items-center sm:gap-3">
                   <input
                     type="text"
                     value={generalItemName}
@@ -1116,90 +1212,35 @@ export default function Order() {
                     placeholder="Price (£)"
                     className={`${inputClass} sm:w-32 text-right`}
                   />
-                  <button
-                    className={`${actionButtonClass} sm:px-6`}
-                    onClick={handleAddGeneralItem}
-                  >
+                  <button className={`${actionButtonClass} sm:px-6`} onClick={handleAddGeneralItem}>
                     Add
                   </button>
                 </div>
-
-                {cart.length === 0 ? (
-                  <div className="rounded-xl border border-dashed border-white/10 bg-black/10 px-4 py-8 text-center text-sm text-slate-500">
-                    Cart is empty. Select a menu item to build the order.
-                  </div>
-                ) : (
-                  cart.map((item, i) => (
-                    <div
-                      key={`${item.id}-${item.portion}-${i}`}
-                      className="flex items-center justify-between gap-3 rounded-2xl border border-white/10 bg-black/20 px-4 py-3"
-                    >
-                      <div className="flex-1 space-y-1">
-                        <div className="flex items-start justify-between gap-2">
-                          <p className="text-sm font-semibold text-white">
-                            {item.name}
-                            {item.portion ? ` (${formatPortionLabel(item.portion)})` : ""}
-                          </p>
-                          <button
-                            className="rounded-full border border-white/10 px-2 py-1 text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-400 transition hover:border-red-400/60 hover:text-red-200"
-                            onClick={() => removeItem(item)}
-                            title="Remove item"
-                          >
-                            Remove
-                          </button>
-                        </div>
-                        <div className="flex items-center justify-between text-xs text-slate-400">
-                          <span>£{item.price.toFixed(2)} each</span>
-                          <span className="font-semibold text-slate-200">
-                            Line: £{(item.price * item.quantity).toFixed(2)}
-                          </span>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-2 rounded-full bg-white/5 px-2 py-1">
-                        <button
-                          className="flex h-8 w-8 items-center justify-center rounded-full bg-black/30 text-lg text-slate-100"
-                          onClick={() => updateQuantity(item, -1)}
-                        >
-                          −
-                        </button>
-                        <span className="min-w-[1.5rem] text-center text-sm font-semibold text-white">
-                          {item.quantity}
-                        </span>
-                        <button
-                          className="flex h-8 w-8 items-center justify-center rounded-full bg-[#f26b30] text-lg text-white"
-                          onClick={() => updateQuantity(item, 1)}
-                        >
-                          +
-                        </button>
-                      </div>
-                    </div>
-                  ))
-                )}
               </div>
 
               {cart.length > 0 && (
-                <div className="space-y-4 border-t border-white/10 bg-black/20 px-5 pb-5 pt-4">
-                  <div className="flex items-center justify-between text-sm text-slate-300">
+                <div className="sticky bottom-0 left-0 right-0 space-y-3 border-t border-slate-200 bg-[#fdfdfd] px-5 pb-5 pt-4 shadow-inner">
+                  <div className="grid grid-cols-2 items-center text-sm text-slate-600">
                     <span>Subtotal</span>
-                    <span>£{subtotal.toFixed(2)}</span>
+                    <span className="text-right">£{subtotal.toFixed(2)}</span>
                   </div>
                   {discountValue > 0 && (
-                    <div className="flex items-center justify-between text-sm text-slate-300">
+                    <div className="grid grid-cols-2 items-center text-sm text-slate-600">
                       <span>Discount</span>
-                      <span>-£{discountValue.toFixed(2)}</span>
+                      <span className="text-right">-£{discountValue.toFixed(2)}</span>
                     </div>
                   )}
-                  <div className="flex items-center justify-between text-base font-semibold text-white">
+                  <div className="grid grid-cols-2 items-center text-base font-semibold text-slate-900">
                     <span>Total</span>
-                    <span>£{total.toFixed(2)}</span>
+                    <span className="text-right">£{total.toFixed(2)}</span>
                   </div>
 
-                  <div className="flex flex-col gap-3 text-xs text-slate-400 lg:flex-row lg:items-start lg:gap-4">
-                    <div className="flex flex-1 flex-col gap-2">
-                      <span className="font-semibold uppercase tracking-[0.18em] text-slate-300">
+                  <div className="space-y-3 text-xs text-slate-600">
+                    <div className="space-y-2">
+                      <span className="font-semibold uppercase tracking-[0.18em] text-slate-700">
                         Discount (%)
                       </span>
-                      <div className="flex flex-wrap items-center gap-2">
+                      <div className="flex flex-wrap items-center gap-2 text-xs">
                         <input
                           type="number"
                           min="0"
@@ -1211,30 +1252,32 @@ export default function Order() {
                           }
                           className={`${inputClass} w-24 text-right`}
                         />
-                        <div className="flex flex-wrap items-center gap-1">
+                        <div className="flex flex-wrap items-center gap-1 text-xs">
                           {quickDiscountOptions.map((value) => (
                             <button
                               key={`discount-${value}`}
                               type="button"
                               className={buildTogglePillClass(
-                                Number(discountPercent || 0) === value
+                                discountPercent === ""
+                                  ? value === 0
+                                  : Number(discountPercent) === value
                               )}
                               onClick={() =>
                                 setDiscountPercent(value === 0 ? "" : String(value))
                               }
                             >
-                              {value}%
+                              {value === 0 ? "None" : `${value}%`}
                             </button>
                           ))}
                         </div>
                       </div>
                     </div>
 
-                    <div className="flex flex-1 flex-col gap-2">
-                      <span className="font-semibold uppercase tracking-[0.18em] text-slate-300">
+                    <div className="space-y-2">
+                      <span className="font-semibold uppercase tracking-[0.18em] text-slate-700">
                         Payment Method
                       </span>
-                      <div className="flex flex-wrap items-center gap-2">
+                      <div className="flex flex-wrap items-center gap-2 text-xs">
                         {paymentOptions.map((option) => (
                           <button
                             key={`payment-${option}`}
@@ -1248,24 +1291,16 @@ export default function Order() {
                       </div>
                     </div>
 
-                    <label
-                      className="flex items-center gap-2 self-start rounded-full border border-white/10 px-3 py-2 text-xs font-medium text-slate-300"
-                      title="Toggle once payment is confirmed so the receipt can be printed."
-                    >
+                    <label className="inline-flex items-center gap-2 text-xs font-medium text-slate-600">
                       <input
                         type="checkbox"
                         checked={isPaid}
                         onChange={() => setIsPaid(!isPaid)}
-                        className="h-4 w-4 rounded border-white/20 bg-transparent text-[#f26b30]"
+                        className="h-4 w-4 rounded border-slate-300 bg-white text-[#f26b30]"
                       />
                       Payment received
                     </label>
                   </div>
-                  {paymentMethod === "Card" && (
-                    <div className="rounded-xl border border-[#f26b30]/30 bg-[#f26b30]/10 px-4 py-3 text-xs text-[#f6ceb5]">
-                      Card orders: call the customer to take payment securely by phone. Do not store card details. Once payment is complete, tick "Payment received" to print the receipt.
-                    </div>
-                  )}
 
                   <button
                     className={`${actionButtonClass} w-full justify-center`}
@@ -1279,9 +1314,9 @@ export default function Order() {
           </aside>
         </section>
 
-        <section className="rounded-3xl border border-white/10 bg-white/5 px-5 py-6 shadow-lg shadow-black/30 backdrop-blur">
-          <h2 className="text-lg font-semibold text-white">Order History</h2>
-          <p className="mt-1 text-xs text-slate-400">
+        <section className="rounded-3xl border border-slate-200 bg-white px-5 py-6 shadow-sm">
+          <h2 className="text-lg font-semibold text-slate-900">Order History</h2>
+          <p className="mt-1 text-xs text-slate-600">
             Jump into the dedicated history views whenever you need deeper reporting.
           </p>
           <div className="mt-4 flex flex-wrap gap-3">
@@ -1303,19 +1338,19 @@ export default function Order() {
 
         {categoryModal && (
           <div
-            className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur"
+            className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur"
             onClick={closeCategoryModal}
             role="dialog"
             aria-modal="true"
           >
             <div
-              className="w-full max-w-5xl rounded-[32px] border border-white/10 bg-[#101828] p-6 text-slate-100 shadow-2xl shadow-black/40"
+              className="w-full max-w-5xl rounded-[32px] border border-slate-200 bg-white p-6 text-slate-900 shadow-2xl shadow-slate-300/40"
               onClick={(event) => event.stopPropagation()}
             >
               <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
                 <div>
                   <p className="text-xs uppercase tracking-[0.35em] text-[#f26b30]">Focused view</p>
-                  <h3 className="text-2xl font-semibold text-white">{categoryModal}</h3>
+                  <h3 className="text-2xl font-semibold text-slate-900">{categoryModal}</h3>
                 </div>
                 <button
                   className={`${subtleButtonClass} mt-4 sm:mt-0`}
@@ -1333,20 +1368,20 @@ export default function Order() {
 
         {detailItem && (
           <div
-            className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur"
+            className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur"
             onClick={() => setDetailItem(null)}
             role="dialog"
             aria-modal="true"
           >
             <div
-              className="w-full max-w-md rounded-[28px] border border-white/10 bg-[#101828] p-6 text-slate-100 shadow-2xl shadow-black/40"
+              className="w-full max-w-md rounded-[28px] border border-slate-200 bg-white p-6 text-slate-900 shadow-2xl shadow-slate-300/40"
               onClick={(event) => event.stopPropagation()}
             >
-              <h3 className="text-lg font-semibold text-white">{detailItem.name}</h3>
-              <p className="mt-2 text-sm leading-relaxed text-slate-300">
+              <h3 className="text-lg font-semibold text-slate-900">{detailItem.name}</h3>
+              <p className="mt-2 text-sm leading-relaxed text-slate-600">
                 {detailItem.description?.trim() || detailItem.ingredients?.join(", ") || "Ask the kitchen for the latest prep."}
               </p>
-              <div className="mt-4 grid gap-2 text-xs text-slate-400">
+              <div className="mt-4 grid gap-2 text-xs text-slate-500">
                 <span>🌶️ {detailItem.spicyLevel || "Mild"}</span>
                 <span>⚠️ {(detailItem.allergens || []).join(", ") || "No listed allergens"}</span>
               </div>
@@ -1361,7 +1396,7 @@ export default function Order() {
                   Add to cart
                 </button>
                 <button
-                  className="inline-flex flex-1 items-center justify-center rounded-full border border-white/10 px-5 py-2 text-sm font-medium text-slate-200 transition hover:border-[#f26b30] hover:text-white"
+                  className="inline-flex flex-1 items-center justify-center rounded-full border border-slate-300 px-5 py-2 text-sm font-medium text-slate-600 transition hover:border-[#f26b30] hover:text-[#f26b30]"
                   onClick={() => setDetailItem(null)}
                 >
                   Close
@@ -1373,7 +1408,7 @@ export default function Order() {
 
       {isMobileViewport && (
         <button
-          className={`fixed bottom-6 right-4 z-40 inline-flex items-center gap-2 rounded-full border border-white/10 bg-[#f26b30] px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-black/40 transition ${
+          className={`fixed bottom-6 right-4 z-40 inline-flex items-center gap-2 rounded-full border border-transparent bg-[#f26b30] px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-[#f26b30]/40 transition ${
             showCart ? "pointer-events-none opacity-0" : "opacity-100"
           } lg:hidden`}
           onClick={() => setShowCart(true)}
@@ -1384,19 +1419,19 @@ export default function Order() {
 
       {selectedItem && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur"
           onClick={() => setSelectedItem(null)}
           role="dialog"
           aria-modal="true"
         >
           <div
-            className="w-full max-w-md rounded-3xl border border-white/10 bg-[#101828] p-6 text-center text-slate-100 shadow-2xl shadow-black/40"
+            className="w-full max-w-md rounded-3xl border border-slate-200 bg-white p-6 text-center text-slate-900 shadow-2xl shadow-slate-300/40"
             onClick={(event) => event.stopPropagation()}
           >
-            <h3 className="text-lg font-semibold text-white">
+            <h3 className="text-lg font-semibold text-slate-900">
               Choose portion for {selectedItem.name}
             </h3>
-            <p className="mt-2 text-sm text-slate-400">
+            <p className="mt-2 text-sm text-slate-600">
               Select a portion size to add this item to the cart.
             </p>
             <div className="mt-6 flex flex-wrap justify-center gap-3">
@@ -1433,19 +1468,19 @@ export default function Order() {
       )}
 
       {showReceipt && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur">
-          <div className="w-full max-w-lg rounded-3xl border border-white/10 bg-[#101828] p-6 text-slate-100 shadow-2xl shadow-black/40">
-            <h3 className="text-xl font-semibold text-white">Receipt #{orderNumber}</h3>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur">
+          <div className="w-full max-w-lg rounded-3xl border border-slate-200 bg-white p-6 text-slate-900 shadow-2xl shadow-slate-300/40">
+            <h3 className="text-xl font-semibold text-slate-900">Receipt #{orderNumber}</h3>
             <p className="mt-1 text-xs text-slate-500">{new Date().toLocaleString()}</p>
-            <div className="mt-4 grid gap-2 text-sm text-slate-300">
+            <div className="mt-4 grid gap-2 text-sm text-slate-600">
               <span>Type: {orderType}</span>
               {customer.name && <span>Name: {customer.name}</span>}
               {customer.phone && <span>Phone: {customer.phone}</span>}
               {customer.address && <span>Address: {customer.address}</span>}
               {customer.postalCode && <span>Postal Code: {customer.postalCode}</span>}
             </div>
-            <div className="my-4 border-t border-white/10"></div>
-            <div className="space-y-2 text-sm text-slate-200">
+            <div className="my-4 border-t border-slate-200"></div>
+            <div className="space-y-2 text-sm text-slate-700">
               {cart.map((item, i) => (
                 <div key={i} className="flex items-center justify-between">
                   <span>
@@ -1456,29 +1491,29 @@ export default function Order() {
                 </div>
               ))}
             </div>
-            <div className="my-4 border-t border-white/10"></div>
-            <div className="space-y-1 text-sm text-slate-200">
+            <div className="my-4 border-t border-slate-200"></div>
+            <div className="space-y-1 text-sm text-slate-700">
               <div className="flex items-center justify-between">
                 <span>Subtotal</span>
                 <span>£{subtotal.toFixed(2)}</span>
               </div>
               {discountValue > 0 && (
-                <div className="flex items-center justify-between text-[#f26b30]">
+                <div className="flex items-center justify-between text-[#d95c1f]">
                   <span>Discount</span>
                   <span>-£{discountValue.toFixed(2)}</span>
                 </div>
               )}
-              <div className="flex items-center justify-between text-base font-semibold text-white">
+              <div className="flex items-center justify-between text-base font-semibold text-slate-900">
                 <span>Total</span>
                 <span>£{total.toFixed(2)}</span>
               </div>
-              <div className="flex items-center justify-between text-xs text-slate-400">
+              <div className="flex items-center justify-between text-xs text-slate-500">
                 <span>Payment</span>
                 <span>{paymentMethod}</span>
               </div>
-              <div className="flex items-center justify-between text-xs text-slate-400">
+              <div className="flex items-center justify-between text-xs text-slate-500">
                 <span>Status</span>
-                <span>{isPaid ? "Paid" : "Pending Cash"}</span>
+                <span>{isPaid ? "Paid" : "Pending"}</span>
               </div>
             </div>
             <div className="mt-6 flex flex-wrap justify-center gap-3">
@@ -1494,13 +1529,13 @@ export default function Order() {
       )}
 
       {showOnlineOrderModal && incomingOnlineOrders.length > 0 && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur">
-          <div className="w-full max-w-md rounded-3xl border border-white/10 bg-[#101828] p-6 text-slate-100 shadow-2xl shadow-black/40">
-            <h3 className="text-xl font-semibold text-white">New Online Order</h3>
-            <div className="mt-3 space-y-2 text-sm text-slate-300">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur">
+          <div className="w-full max-w-md rounded-3xl border border-slate-200 bg-white p-6 text-slate-900 shadow-2xl shadow-slate-300/40">
+            <h3 className="text-xl font-semibold text-slate-900">New Online Order</h3>
+            <div className="mt-3 space-y-2 text-sm text-slate-600">
               <p>Customer: {incomingOnlineOrders[0].customer?.name || "Walk-in"}</p>
               <p>Order ID: {incomingOnlineOrders[0].orderId}</p>
-              <ul className="mt-2 space-y-1 rounded-xl border border-white/10 bg-black/20 px-4 py-3 text-xs">
+              <ul className="mt-2 space-y-1 rounded-xl border border-slate-200 bg-[#f9fafb] px-4 py-3 text-xs text-slate-700">
                 {incomingOnlineOrders[0].items.map((item, idx) => (
                   <li key={idx} className="flex justify-between">
                     <span>{item.name}</span>
@@ -1528,10 +1563,11 @@ export default function Order() {
       )}
 
       {isToastVisible && (
-        <div className="pointer-events-none fixed bottom-8 left-1/2 z-50 -translate-x-1/2 rounded-full border border-white/10 bg-[#111b30]/95 px-6 py-3 text-sm font-medium text-slate-100 shadow-xl shadow-black/40">
+        <div className="pointer-events-none fixed bottom-8 left-1/2 z-50 -translate-x-1/2 rounded-full border border-slate-200 bg-white px-6 py-3 text-sm font-medium text-slate-700 shadow-xl shadow-slate-300/40">
           ✅ {toastMessage}
         </div>
       )}
     </div>
   </StaffGate>
-  )};
+  );
+}
