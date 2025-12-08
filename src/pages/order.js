@@ -260,6 +260,14 @@ export default function Order() {
     "inline-flex items-center justify-center gap-2 rounded-full bg-[#f26b30] px-5 py-2 text-sm font-semibold text-white shadow-lg shadow-[#f26b30]/20 transition hover:bg-[#ff773c] focus:outline-none disabled:cursor-not-allowed disabled:opacity-60";
   const subtleButtonClass =
     "inline-flex items-center justify-center gap-2 rounded-full border border-white/10 px-4 py-2 text-sm font-medium text-slate-200 transition hover:border-[#f26b30] hover:text-white focus:outline-none disabled:cursor-not-allowed disabled:opacity-60";
+  const buildTogglePillClass = (isActive) =>
+    `rounded-full border px-3 py-1 text-xs font-semibold transition ${
+      isActive
+        ? "border-[#f26b30] bg-[#f26b30]/15 text-[#fcd7ba]"
+        : "border-white/10 text-slate-300 hover:border-[#f26b30] hover:text-white"
+    }`;
+  const paymentOptions = ["Cash", "Card"];
+  const quickDiscountOptions = [0, 5, 10];
 
   useEffect(() => {
     if (searchResults.length > 0) {
@@ -329,6 +337,21 @@ export default function Order() {
         )
         .filter((c) => c.quantity > 0)
     );
+  };
+
+  const removeItem = (item) => {
+    setCart((prev) =>
+      prev.filter((c) => !(c.id === item.id && c.portion === item.portion))
+    );
+  };
+
+  const clearCart = () => {
+    if (cart.length === 0) return;
+    const shouldClear = window.confirm("Clear all items from the order?");
+    if (!shouldClear) return;
+    setCart([]);
+    setDiscountPercent("");
+    setIsPaid(false);
   };
 
   const getValidPortions = (item) =>
@@ -449,6 +472,15 @@ export default function Order() {
 
   const handleSubmitOrder = async () => {
     if (cart.length === 0) return alert("No items in the order!");
+
+    if (paymentMethod === "Card" && !isPaid) {
+      const confirmProceed = window.confirm(
+        "Card payment has not been marked as received. Continue and leave the order as pending?"
+      );
+      if (!confirmProceed) {
+        return;
+      }
+    }
 
     const orderId = generateOrderId();
     const orderData = {
@@ -1039,13 +1071,21 @@ export default function Order() {
                 <div>
                   <h3 className="text-lg font-semibold text-white">Cart</h3>
                   <p className="text-xs text-slate-400">
-                    {cartCount} item{cartCount === 1 ? "" : "s"}
+                    {cartCount} item{cartCount === 1 ? "" : "s"} · £{total.toFixed(2)}
                   </p>
                 </div>
                   <div className="flex items-center gap-2">
                     <span className="hidden rounded-full border border-white/10 px-3 py-1 text-xs font-medium text-slate-400 lg:inline-flex">
                       Ready
                     </span>
+                    {cart.length > 0 && (
+                      <button
+                        className="hidden items-center gap-1 rounded-full border border-white/10 px-3 py-1 text-xs font-semibold text-slate-200 transition hover:border-[#f26b30] hover:text-white lg:inline-flex"
+                        onClick={clearCart}
+                      >
+                        ⟲ Clear
+                      </button>
+                    )}
                     <button
                       className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-white/10 text-slate-200 transition hover:border-[#f26b30] hover:text-white lg:hidden"
                       onClick={() => setShowCart(false)}
@@ -1094,25 +1134,39 @@ export default function Order() {
                       key={`${item.id}-${item.portion}-${i}`}
                       className="flex items-center justify-between gap-3 rounded-2xl border border-white/10 bg-black/20 px-4 py-3"
                     >
-                      <div className="max-w-[60%]">
-                        <p className="text-sm font-semibold text-white">
-                          {item.name}
-                          {item.portion ? ` (${formatPortionLabel(item.portion)})` : ""}
-                        </p>
-                        <p className="text-xs text-slate-400">
-                          £{item.price.toFixed(2)} × {item.quantity}
-                        </p>
+                      <div className="flex-1 space-y-1">
+                        <div className="flex items-start justify-between gap-2">
+                          <p className="text-sm font-semibold text-white">
+                            {item.name}
+                            {item.portion ? ` (${formatPortionLabel(item.portion)})` : ""}
+                          </p>
+                          <button
+                            className="rounded-full border border-white/10 px-2 py-1 text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-400 transition hover:border-red-400/60 hover:text-red-200"
+                            onClick={() => removeItem(item)}
+                            title="Remove item"
+                          >
+                            Remove
+                          </button>
+                        </div>
+                        <div className="flex items-center justify-between text-xs text-slate-400">
+                          <span>£{item.price.toFixed(2)} each</span>
+                          <span className="font-semibold text-slate-200">
+                            Line: £{(item.price * item.quantity).toFixed(2)}
+                          </span>
+                        </div>
                       </div>
                       <div className="flex items-center gap-2 rounded-full bg-white/5 px-2 py-1">
                         <button
-                          className="flex h-7 w-7 items-center justify-center rounded-full bg-black/30 text-lg text-slate-100"
+                          className="flex h-8 w-8 items-center justify-center rounded-full bg-black/30 text-lg text-slate-100"
                           onClick={() => updateQuantity(item, -1)}
                         >
                           −
                         </button>
-                        <span className="text-sm font-semibold text-white">{item.quantity}</span>
+                        <span className="min-w-[1.5rem] text-center text-sm font-semibold text-white">
+                          {item.quantity}
+                        </span>
                         <button
-                          className="flex h-7 w-7 items-center justify-center rounded-full bg-[#f26b30] text-lg text-white"
+                          className="flex h-8 w-8 items-center justify-center rounded-full bg-[#f26b30] text-lg text-white"
                           onClick={() => updateQuantity(item, 1)}
                         >
                           +
@@ -1140,34 +1194,62 @@ export default function Order() {
                     <span>£{total.toFixed(2)}</span>
                   </div>
 
-                  <div className="flex flex-wrap items-center gap-3">
-                    <label className="flex flex-col text-xs text-slate-400">
-                      Discount (%)
-                      <input
-                        type="number"
-                        min="0"
-                        max="100"
-                        value={discountPercent}
-                        placeholder="Enter %"
-                        onChange={(e) =>
-                          setDiscountPercent(e.target.value.replace(/[^0-9.]/g, ""))
-                        }
-                        className={`${inputClass} mt-1 w-24 text-right`}
-                      />
-                    </label>
-                    <label className="flex flex-col text-xs text-slate-400">
-                      Payment Method
-                      <select
-                        value={paymentMethod}
-                        onChange={(e) => setPaymentMethod(e.target.value)}
-                        className={`${inputClass} mt-1 appearance-none`}
-                      >
-                        <option>Cash</option>
-                        <option>Card</option>
-                      </select>
-                    </label>
+                  <div className="flex flex-col gap-3 text-xs text-slate-400 lg:flex-row lg:items-start lg:gap-4">
+                    <div className="flex flex-1 flex-col gap-2">
+                      <span className="font-semibold uppercase tracking-[0.18em] text-slate-300">
+                        Discount (%)
+                      </span>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <input
+                          type="number"
+                          min="0"
+                          max="100"
+                          value={discountPercent}
+                          placeholder="Enter %"
+                          onChange={(e) =>
+                            setDiscountPercent(e.target.value.replace(/[^0-9.]/g, ""))
+                          }
+                          className={`${inputClass} w-24 text-right`}
+                        />
+                        <div className="flex flex-wrap items-center gap-1">
+                          {quickDiscountOptions.map((value) => (
+                            <button
+                              key={`discount-${value}`}
+                              type="button"
+                              className={buildTogglePillClass(
+                                Number(discountPercent || 0) === value
+                              )}
+                              onClick={() =>
+                                setDiscountPercent(value === 0 ? "" : String(value))
+                              }
+                            >
+                              {value}%
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="flex flex-1 flex-col gap-2">
+                      <span className="font-semibold uppercase tracking-[0.18em] text-slate-300">
+                        Payment Method
+                      </span>
+                      <div className="flex flex-wrap items-center gap-2">
+                        {paymentOptions.map((option) => (
+                          <button
+                            key={`payment-${option}`}
+                            type="button"
+                            className={buildTogglePillClass(paymentMethod === option)}
+                            onClick={() => setPaymentMethod(option)}
+                          >
+                            {option}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
                     <label
-                      className="flex items-center gap-2 rounded-full border border-white/10 px-3 py-2 text-xs font-medium text-slate-300"
+                      className="flex items-center gap-2 self-start rounded-full border border-white/10 px-3 py-2 text-xs font-medium text-slate-300"
                       title="Toggle once payment is confirmed so the receipt can be printed."
                     >
                       <input
