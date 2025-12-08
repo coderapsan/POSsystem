@@ -5,6 +5,7 @@ export default function Order() {
   const [menu, setMenu] = useState({});
   const [expandedCategory, setExpandedCategory] = useState(null);
   const [cart, setCart] = useState([]);
+  const [showCart, setShowCart] = useState(false);
   const [showReceipt, setShowReceipt] = useState(false);
   const [orderNumber, setOrderNumber] = useState("");
   const [paymentMethod, setPaymentMethod] = useState("Cash");
@@ -34,6 +35,10 @@ export default function Order() {
   const toastTimerRef = useRef(null);
   const [toastMessage, setToastMessage] = useState("");
   const [isToastVisible, setIsToastVisible] = useState(false);
+  const [viewportWidth, setViewportWidth] = useState(() =>
+    typeof window !== "undefined" ? window.innerWidth : 1440
+  );
+  const cartInitRef = useRef(false);
 
   const triggerToast = useCallback((message) => {
     if (!message) return;
@@ -46,6 +51,8 @@ export default function Order() {
       setIsToastVisible(false);
     }, 2200);
   }, []);
+
+  const isMobileViewport = viewportWidth < 1024;
 
   const findFirstAvailableCategory = useCallback((menuMap) => {
     for (const [catName, catData] of Object.entries(menuMap || {})) {
@@ -111,6 +118,14 @@ export default function Order() {
     loadMenu();
   }, [loadMenu]);
 
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const handleResize = () => setViewportWidth(window.innerWidth);
+    handleResize();
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
+
   // Poll for new online orders every 5 seconds
   useEffect(() => {
     const interval = setInterval(async () => {
@@ -126,6 +141,17 @@ export default function Order() {
     }, 5000);
     return () => clearInterval(interval);
   }, []);
+
+  useEffect(() => {
+    if (!cartInitRef.current) {
+      setShowCart(!isMobileViewport);
+      cartInitRef.current = true;
+      return;
+    }
+    if (!isMobileViewport) {
+      setShowCart(true);
+    }
+  }, [isMobileViewport]);
 
   useEffect(() => {
     return () => {
@@ -230,6 +256,10 @@ export default function Order() {
         },
       ];
     });
+
+    if (isMobileViewport) {
+      setShowCart(true);
+    }
 
     triggerToast(message);
   };
@@ -433,6 +463,9 @@ export default function Order() {
     setCart((prev) => [...prev, newItem]);
     setGeneralItemName("");
     setGeneralItemPrice("");
+    if (isMobileViewport) {
+      setShowCart(true);
+    }
     triggerToast(`${name} added to cart`);
   };
 
@@ -725,7 +758,9 @@ export default function Order() {
 
           <aside className="relative w-full lg:pl-2">
             <div
-              className="fixed bottom-0 right-0 z-40 flex w-full max-h-[80vh] flex-col overflow-hidden rounded-t-3xl border border-white/10 bg-[#101828]/95 shadow-[0_-20px_60px_rgba(0,0,0,0.5)] backdrop-blur lg:sticky lg:top-28 lg:bottom-auto lg:right-auto lg:max-h-[calc(100vh-6rem)] lg:w-full lg:rounded-3xl lg:shadow-2xl"
+                className={`fixed bottom-0 right-0 z-40 flex w-full max-h-[80vh] flex-col overflow-hidden rounded-t-3xl border border-white/10 bg-[#101828]/95 shadow-[0_-20px_60px_rgba(0,0,0,0.5)] backdrop-blur transition-transform duration-300 ease-out ${
+                  showCart ? "translate-y-0" : "translate-y-[calc(100%-4rem)]"
+                } lg:sticky lg:top-28 lg:bottom-auto lg:right-auto lg:max-h-[calc(100vh-6rem)] lg:w-full lg:translate-y-0 lg:rounded-3xl lg:shadow-2xl lg:transition-none`}
             >
               <div className="flex items-center justify-between border-b border-white/10 bg-white/10 px-5 py-4">
                 <div>
@@ -734,9 +769,18 @@ export default function Order() {
                     {cartCount} item{cartCount === 1 ? "" : "s"}
                   </p>
                 </div>
-                <span className="rounded-full border border-white/10 px-3 py-1 text-xs font-medium text-slate-400">
-                  Ready
-                </span>
+                  <div className="flex items-center gap-2">
+                    <span className="hidden rounded-full border border-white/10 px-3 py-1 text-xs font-medium text-slate-400 lg:inline-flex">
+                      Ready
+                    </span>
+                    <button
+                      className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-white/10 text-slate-200 transition hover:border-[#f26b30] hover:text-white lg:hidden"
+                      onClick={() => setShowCart(false)}
+                      aria-label="Hide cart"
+                    >
+                      ✕
+                    </button>
+                  </div>
               </div>
 
               <div className="flex-1 space-y-4 overflow-y-auto px-5 py-4">
@@ -893,6 +937,17 @@ export default function Order() {
           </div>
         </section>
       </main>
+
+      {isMobileViewport && (
+        <button
+          className={`fixed bottom-6 right-4 z-40 inline-flex items-center gap-2 rounded-full border border-white/10 bg-[#f26b30] px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-black/40 transition ${
+            showCart ? "pointer-events-none opacity-0" : "opacity-100"
+          } lg:hidden`}
+          onClick={() => setShowCart(true)}
+        >
+          🛒 Cart ({cartCount})
+        </button>
+      )}
 
       {selectedItem && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur">
