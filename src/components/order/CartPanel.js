@@ -42,8 +42,8 @@ export default function CartPanel({
     <aside className="relative w-full lg:pl-4">
       <div
         className={`fixed bottom-0 right-0 z-40 flex w-full max-h-[92vh] flex-col overflow-hidden rounded-t-3xl border border-slate-200 bg-white shadow-lg transition-transform duration-300 ${
-          showCart ? "translate-y-0" : "translate-y-[calc(100%-4rem)]"
-        } lg:sticky lg:top-24 lg:bottom-auto lg:max-h-[calc(100vh-4rem)] lg:w-full lg:translate-y-0 lg:rounded-3xl lg:shadow-xl`}
+          showCart ? "translate-y-0" : "translate-y-[calc(100%-3rem)]"
+        } sm:translate-y-[calc(100%-3.5rem)] lg:sticky lg:top-24 lg:bottom-auto lg:max-h-[calc(100vh-4rem)] lg:w-full lg:translate-y-0 lg:rounded-3xl lg:shadow-xl`}
       >
         {/* Header - Compact */}
         <div className="border-b border-slate-200 bg-white px-4 py-2.5">

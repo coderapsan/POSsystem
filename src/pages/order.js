@@ -699,8 +699,8 @@ export default function Order() {
           ${cashDetails}
           <div>Status: ${statusSummary}</div>
           <div class="line"></div>
-          <div class="center note">Thank you for supporting independent Nepalese cuisine.</div>
-          <div class="center note">Connect with us: @themomosldn • themomos.co.uk</div>
+          <div class="center note">Thank you </div>
+          
         </body>
       </html>`;
 

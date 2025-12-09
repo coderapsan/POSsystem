@@ -1240,13 +1240,13 @@ export default function Admin() {
 
 function StatCard({ title, value, subtitle, accent = "bg-orange-600" }) {
   return (
-    <div className="bg-white p-5 rounded-lg shadow">
-      <p className="text-xs uppercase tracking-wide text-gray-500">{title}</p>
-      <div className="flex items-baseline gap-2 mt-2">
-        <span className={`inline-block w-2 h-2 rounded-full ${accent}`} />
-        <span className="text-2xl font-bold text-gray-900">{value}</span>
+    <div className="bg-gradient-to-br from-white to-slate-50 p-5 rounded-lg shadow hover:shadow-lg transition">
+      <p className="text-xs uppercase tracking-widest font-semibold text-slate-500">{title}</p>
+      <div className="flex items-baseline gap-3 mt-3">
+        <span className={`inline-block w-3 h-3 rounded-full ${accent}`} />
+        <span className="text-3xl font-bold text-slate-900">{value}</span>
       </div>
-      {subtitle && <p className="text-xs text-gray-500 mt-2">{subtitle}</p>}
+      {subtitle && <p className="text-xs text-slate-600 mt-2 font-medium">{subtitle}</p>}
     </div>
   );
 }

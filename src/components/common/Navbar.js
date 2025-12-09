@@ -40,36 +40,46 @@ export default function Navbar({ scheme = "dark", isHidden = false }) {
         isHidden ? "-translate-y-full" : "translate-y-0"
       } ${palette.nav}`}
     >
+      {/* Demo Badge */}
+      <div className="bg-yellow-400 text-slate-900 text-center py-1 text-xs font-bold tracking-widest">
+        🚀 DEMO VERSION - Product Still Building
+      </div>
+
       <div className={`mx-auto flex max-w-7xl items-center justify-between px-4 py-3 ${palette.text}`}>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 sm:gap-3">
           <img
             src="/assets/images/the-momos-mark.png"
             alt="The Momos"
-            className="h-10 w-auto drop-shadow-md"
+            className="h-8 sm:h-10 w-auto drop-shadow-md"
           />
-          <div>
-            <p className={`text-sm uppercase tracking-[0.3em] ${palette.accent}`}>
+          <div className="hidden sm:block">
+            <p className={`text-xs sm:text-sm uppercase tracking-[0.2em] sm:tracking-[0.3em] ${palette.accent}`}>
               Manager Console
             </p>
-            <p className="text-lg font-semibold">The MoMos Control Hub</p>
+            <p className="text-base sm:text-lg font-semibold">The MoMos</p>
+          </div>
+          <div className="sm:hidden">
+            <p className={`text-xs ${palette.accent}`}>MoMos</p>
           </div>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1 sm:gap-2">
           {links.map((link) => (
             <Link
               key={link.href}
               href={link.href}
-              className={`rounded-full border border-transparent px-4 py-2 text-sm font-medium transition ${palette.link}`}
+              className={`rounded-full border border-transparent px-2 sm:px-4 py-2 text-xs sm:text-sm font-medium transition ${palette.link}`}
             >
-              {link.label}
+              <span className="hidden sm:inline">{link.label}</span>
+              <span className="sm:hidden">{link.label.split(" ")[0]}</span>
             </Link>
           ))}
           <button
             type="button"
             onClick={handleLock}
-            className={`rounded-full border px-4 py-2 text-sm font-medium transition ${palette.lock}`}
+            className={`rounded-full border px-2 sm:px-4 py-2 text-xs sm:text-sm font-medium transition ${palette.lock}`}
           >
-            Lock
+            <span className="hidden sm:inline">Lock</span>
+            <span className="sm:hidden">🔒</span>
           </button>
         </div>
       </div>
