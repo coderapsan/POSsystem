@@ -603,18 +603,12 @@ export default function Order() {
         setOrderNumber(orderId);
         setReceiptTimestamp(timestamp);
         setIsNewCustomer(isNewCustomer);
-        triggerToast(`Order #${orderId} saved to database`);
+        triggerToast(`Order #${orderId} saved successfully!`);
         
-        // Ask if they want to print
-        const shouldPrint = window.confirm("Order saved successfully! Print receipt now?");
-        if (shouldPrint) {
-          handlePrintReceipt();
-        } else {
-          // Just reset the order state
-          setTimeout(() => {
-            resetOrderState();
-          }, 500);
-        }
+        // Just reset the order state - don't print automatically
+        setTimeout(() => {
+          resetOrderState();
+        }, 500);
       } else {
         window.alert("Failed to save order: " + (result.error || "Unknown error"));
       }
@@ -826,20 +820,93 @@ export default function Order() {
     setShowReceipt(true);
   };
 
-  const handlePrintBillOnly = () => {
+  const handlePrintBillOnly = async () => {
     if (cart.length === 0) {
       window.alert("No items in the cart to print.");
       return;
     }
 
-    // Generate order number if needed
-    const currentOrderNumber = orderNumber || generateOrderId();
-    if (!orderNumber) {
-      setOrderNumber(currentOrderNumber);
+    if (paymentMethod === "Card" && !isPaid) {
+      const confirmProceed = window.confirm(
+        "Card payment has not been marked as received. Continue anyway?"
+      );
+      if (!confirmProceed) {
+        return;
+      }
     }
 
-    // Print directly without saving to database
-    handlePrintReceipt();
+    const orderId = generateOrderId();
+    const timestamp = new Date().toLocaleString();
+    
+    // Check if this is a new customer
+    let isNewCustomer = true;
+    if (customer.postalCode) {
+      try {
+        const response = await fetch(`/api/saveOrder?postalCode=${encodeURIComponent(customer.postalCode)}`);
+        const data = await response.json();
+        if (data.orders && data.orders.length > 0) {
+          isNewCustomer = false;
+        }
+      } catch (error) {
+        console.warn("Could not check customer history:", error);
+      }
+    }
+    
+    const orderData = {
+      orderId,
+      orderNumber: orderId,
+      timestamp,
+      orderType,
+      customer,
+      customerName: customer.name,
+      paymentMethod,
+      isPaid,
+      amountReceived: paymentMethod === "Cash" ? amountReceivedNumber : total,
+      changeDue,
+      total,
+      isNewCustomer,
+      totals: {
+        subtotal,
+        discount: {
+          type: discountType,
+          input: discountInput,
+          value: discountValue,
+        },
+        tax: taxAmount,
+        grandTotal: total,
+      },
+      items: cart,
+    };
+
+    try {
+      // Save to database first
+      const response = await fetch("/api/saveOrder", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(orderData),
+      });
+      const result = await response.json();
+      if (result.success) {
+        setOrderNumber(orderId);
+        setReceiptTimestamp(timestamp);
+        setIsNewCustomer(isNewCustomer);
+        triggerToast(`Order #${orderId} saved to database`);
+        
+        // Now print the receipt
+        handlePrintReceipt();
+        
+        // Reset after printing
+        setTimeout(() => {
+          resetOrderState();
+        }, 1000);
+      } else {
+        window.alert("Failed to save order: " + (result.error || "Unknown error"));
+      }
+    } catch (error) {
+      window.alert("Error saving order: " + error.message);
+    }
   };
 
   const printOnlineOrderTicket = (order) => {

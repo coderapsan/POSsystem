@@ -265,18 +265,18 @@ export default function CartPanel({
           {/* Action Buttons */}
           <div className="grid grid-cols-2 gap-2 pt-1">
             <button
-              onClick={onPrintBill}
+              onClick={onConfirmOrder}
               className={`${subtleButtonClass} py-2 rounded-lg font-semibold text-xs`}
               disabled={!hasCartItems}
             >
-              print bill
+              submit order
             </button>
             <button
-              onClick={onConfirmOrder}
+              onClick={onPrintBill}
               className="rounded-lg bg-[#f26b30] text-white py-2 font-semibold text-xs hover:bg-[#ff773c]"
               disabled={!hasCartItems}
             >
-              confirm order
+              print receipt
             </button>
           </div>
 

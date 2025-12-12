@@ -12,14 +12,16 @@ export default async function handler(req, res) {
         orderId: orderData.orderId,
         items: orderData.items,
         total: orderData.total,
-        customerName: orderData.customerName || "",
+        customerName: orderData.customerName || orderData.customer?.name || "",
         customer: orderData.customer || {},
         paymentMethod: orderData.paymentMethod || "",
         isPaid: orderData.isPaid || false,
-        discountPercent: orderData.discountPercent || "",
+        discountPercent: orderData.totals?.discount?.input || orderData.discountPercent || "",
         orderType: orderData.orderType || "",
         status: orderData.status || (orderData.source === "customer" ? "pending" : "accepted"),
         source: orderData.source || "pos",
+        isNewCustomer: orderData.isNewCustomer !== undefined ? orderData.isNewCustomer : true,
+        createdAt: orderData.timestamp ? new Date(orderData.timestamp) : new Date(),
       });
       console.log("Saving new order:", newOrder);
       await newOrder.save();
@@ -32,10 +34,11 @@ export default async function handler(req, res) {
   } else if (req.method === "GET") {
     try {
       await connectToDatabase();
-      const { source, status } = req.query;
+      const { source, status, postalCode } = req.query;
       let query = {};
       if (source) query.source = source;
       if (status) query.status = status;
+      if (postalCode) query["customer.postalCode"] = postalCode;
       const orders = await Order.find(query).sort({ createdAt: -1 });
       return res.status(200).json({ success: true, orders });
     } catch (error) {
