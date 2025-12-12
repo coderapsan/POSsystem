@@ -116,6 +116,7 @@ export default async function handler(req, res) {
             spicyLevel: item.spicyLevel,
             allergens: normalizeAllergens(item.allergens),
             isAvailable: item.isAvailable !== false,
+            imageUrl: item.imageUrl || "",
           });
         });
 
@@ -142,6 +143,7 @@ export default async function handler(req, res) {
           spicyLevel: item.spicyLevel || "",
           allergens: normalizeAllergens(item.allergens),
           isAvailable: item.isAvailable !== false,
+          imageUrl: (item.imageUrl || "").trim(),
         };
 
         const newItem = await Menu.create(payload);
@@ -190,6 +192,10 @@ export default async function handler(req, res) {
 
         if (update.name) {
           update.name = String(update.name).trim();
+        }
+
+        if (Object.prototype.hasOwnProperty.call(update, "imageUrl")) {
+          update.imageUrl = String(update.imageUrl || "").trim();
         }
 
         await Menu.findByIdAndUpdate(itemId, { $set: update });

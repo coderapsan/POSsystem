@@ -16,6 +16,7 @@ const OrderSchema = new mongoose.Schema(
     source: { type: String }, // 'customer' or 'pos'
     acceptedAt: { type: Date },
     completedAt: { type: Date },
+    isNewCustomer: { type: Boolean, default: true }, // true if first order with postal code
   },
   { collection: "orders" }
 );

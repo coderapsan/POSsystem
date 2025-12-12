@@ -43,6 +43,7 @@ export default function Order() {
   const [receiptTimestamp, setReceiptTimestamp] = useState("");
   const [paymentMethod, setPaymentMethod] = useState("Cash");
   const [isPaid, setIsPaid] = useState(false);
+  const [isNewCustomer, setIsNewCustomer] = useState(true);
   const [selectedItem, setSelectedItem] = useState(null);
   const [discountType, setDiscountType] = useState("percentage");
   const [discountInput, setDiscountInput] = useState("");
@@ -264,13 +265,16 @@ export default function Order() {
 
   useEffect(() => {
     if (!cartInitRef.current) {
+      // Keep cart closed on mobile viewport, open on desktop only
       setShowCart(!isMobileViewport);
       cartInitRef.current = true;
       return;
     }
+    // Only auto-open on desktop, keep mobile closed unless user clicks
     if (!isMobileViewport) {
       setShowCart(true);
     }
+    // Never auto-open on mobile after initial load
   }, [isMobileViewport]);
 
   useEffect(() => {
@@ -545,6 +549,21 @@ export default function Order() {
 
     const orderId = generateOrderId();
     const timestamp = new Date().toLocaleString();
+    
+    // Check if this is a new customer (postal code not in system before)
+    let isNewCustomer = true;
+    if (customer.postalCode) {
+      try {
+        const response = await fetch(`/api/saveOrder?postalCode=${encodeURIComponent(customer.postalCode)}`);
+        const data = await response.json();
+        if (data.orders && data.orders.length > 0) {
+          isNewCustomer = false;
+        }
+      } catch (error) {
+        console.warn("Could not check customer history:", error);
+      }
+    }
+    
     const orderData = {
       orderId,
       orderNumber: orderId,
@@ -557,6 +576,7 @@ export default function Order() {
       amountReceived: paymentMethod === "Cash" ? amountReceivedNumber : total,
       changeDue,
       total,
+      isNewCustomer,
       totals: {
         subtotal,
         discount: {
@@ -582,8 +602,19 @@ export default function Order() {
       if (result.success) {
         setOrderNumber(orderId);
         setReceiptTimestamp(timestamp);
-        setShowReceipt(true);
-        triggerToast(`Order #${orderId} saved`);
+        setIsNewCustomer(isNewCustomer);
+        triggerToast(`Order #${orderId} saved to database`);
+        
+        // Ask if they want to print
+        const shouldPrint = window.confirm("Order saved successfully! Print receipt now?");
+        if (shouldPrint) {
+          handlePrintReceipt();
+        } else {
+          // Just reset the order state
+          setTimeout(() => {
+            resetOrderState();
+          }, 500);
+        }
       } else {
         window.alert("Failed to save order: " + (result.error || "Unknown error"));
       }
@@ -592,14 +623,25 @@ export default function Order() {
     }
   };
 
-  const handlePrintReceipt = () => {
-    if (cart.length === 0) {
+  const handlePrintReceipt = (receiptData = null) => {
+    console.log("=== PRINT RECEIPT CALLED ===");
+    
+    // Use passed data or fall back to current state
+    const printCart = receiptData?.cart || cart;
+    const printOrderNumber = receiptData?.orderNumber || orderNumber;
+    const printTimestamp = receiptData?.timestamp || receiptTimestamp;
+    const printOrderType = receiptData?.orderType || orderType;
+    const printCustomer = receiptData?.customer || customer;
+    const printPaymentMethod = receiptData?.paymentMethod || paymentMethod;
+    const printIsPaid = receiptData?.isPaid !== undefined ? receiptData.isPaid : isPaid;
+    
+    if (printCart.length === 0) {
       window.alert("Nothing to print — the cart is empty.");
       return;
     }
 
-    const currentOrderNumber = orderNumber || generateOrderId();
-    if (!orderNumber) {
+    const currentOrderNumber = printOrderNumber || generateOrderId();
+    if (!orderNumber && !receiptData) {
       setOrderNumber(currentOrderNumber);
     }
 
@@ -609,109 +651,164 @@ export default function Order() {
       return;
     }
 
-    const effectiveTimestamp = receiptTimestamp || new Date().toLocaleString();
-    if (!receiptTimestamp) {
+    const effectiveTimestamp = printTimestamp || new Date().toLocaleString();
+    if (!receiptTimestamp && !receiptData) {
       setReceiptTimestamp(effectiveTimestamp);
     }
 
-    const customerDetails =
-      customer.name || customer.phone
-        ? `<div class="line"></div>
-           <div class="section-title">Customer</div>
-           <div>Name: ${customer.name || "-"}</div>
-           <div>Phone: ${customer.phone || "-"}</div>
-           <div>Address: ${customer.address || "-"}</div>
-           <div>Postal: ${customer.postalCode || "-"}</div>`
-        : "";
+    // Calculate subtotal and build items list
+    let subtotalAmount = 0;
+    const itemsList = [];
+    
+    printCart.forEach((item) => {
+      const qty = Number(item.quantity) || 0;
+      const priceEach = Number(item.price) || 0;
+      const lineTotal = qty * priceEach;
+      subtotalAmount += lineTotal;
+      
+      const portion = item.portion ? ` (${formatPortionLabel(item.portion)})` : "";
+      itemsList.push({
+        name: String(item.name || "Item"),
+        portion: portion,
+        qty: qty,
+        price: lineTotal.toFixed(2),
+        note: item.note || ""
+      });
+    });
 
-    const itemsHtml = cart
-      .map((item) => {
-        const portionLabel = item.portion ? ` (${formatPortionLabel(item.portion)})` : "";
-        const lineTotal = (item.price * item.quantity).toFixed(2);
-        const note = item.note ? `<div class="item-note">Note: ${item.note}</div>` : "";
-        return `<div class="item-line">${item.quantity} × ${item.name}${portionLabel} - £${lineTotal}${note}</div>`;
-      })
-      .join("");
+    // Calculate discount
+    const parsedDiscount = Number(discountInput) || 0;
+    const rawDiscount = 
+      !discountInput || discountInput === "" 
+        ? 0 
+        : discountType === "percentage"
+        ? (subtotalAmount * parsedDiscount) / 100
+        : parsedDiscount;
+    const discountAmount = Math.min(rawDiscount, subtotalAmount);
+    
+    // Calculate final total
+    const finalTotal = Math.max(subtotalAmount - discountAmount, 0);
+    
+    const subtotalStr = subtotalAmount.toFixed(2);
+    const discountStr = discountAmount.toFixed(2);
+    const totalAmount = finalTotal.toFixed(2);
+    
+    // Build customer info
+    const customerInfo = {
+      name: printCustomer.name || "",
+      phone: printCustomer.phone || "",
+      address: printCustomer.address || "",
+      postalCode: printCustomer.postalCode || ""
+    };
 
-    const discountLabel =
-      discountValue > 0
-        ? discountType === "percentage" && discountInput
-          ? `Discount (${discountInput}% )`
-          : "Discount"
-        : "";
+    // Build HTML using simple inline-block layout for thermal printer
+    let htmlContent = '<!DOCTYPE html><html><head><meta charset="UTF-8">';
+    htmlContent += '<title>Receipt ' + currentOrderNumber + '</title>';
+    htmlContent += '<style>';
+    htmlContent += '* { margin: 0; padding: 0; box-sizing: border-box; }';
+    htmlContent += '@page { margin: 0; size: 80mm auto; }';
+    htmlContent += 'body { font-family: "Courier New", monospace; width: 72mm; margin: 0 auto; padding: 2mm; background: white; font-size: 14px; line-height: 1.6; }';
+    htmlContent += '.divider { border-bottom: 1px dashed #333; margin: 6px 0; height: 1px; }';
+    htmlContent += '.center { text-align: center; }';
+    htmlContent += '.bold { font-weight: bold; }';
+    htmlContent += '.line { margin: 4px 0; overflow: hidden; }';
+    htmlContent += '.left { float: left; max-width: 60%; }';
+    htmlContent += '.right { float: right; text-align: right; }';
+    htmlContent += '.clear { clear: both; }';
+    htmlContent += '@media print { body { width: 72mm; margin: 0 auto; padding: 2mm; } }';
+    htmlContent += '</style></head><body>';
+    
+    // Header
+    htmlContent += '<div class="center bold" style="font-size: 17px; margin-bottom: 4px;">The MoMos</div>';
+    htmlContent += '<div class="center" style="font-size: 13px; margin-bottom: 10px;">340 Kingston Road, SW20 8LR<br>0208 123 4567</div>';
+    htmlContent += '<div class="divider"></div>';
+    
+    // Order number
+    htmlContent += '<div class="center bold" style="font-size: 30px; margin: 10px 0;">#' + currentOrderNumber + '</div>';
+    htmlContent += '<div class="center" style="font-size: 13px; margin-bottom: 10px;">' + String(printOrderType) + '<br>' + effectiveTimestamp + '</div>';
+    htmlContent += '<div class="divider"></div>';
+    
+    // Customer details
+    if (customerInfo.name || customerInfo.phone) {
+      htmlContent += '<div style="margin: 6px 0; padding: 6px 0; border-bottom: 1px solid #000;">';
+      if (customerInfo.name) {
+        htmlContent += '<div class="bold" style="font-size: 15px; margin-bottom: 3px;">' + customerInfo.name + '</div>';
+      }
+      if (customerInfo.phone) {
+        htmlContent += '<div class="bold" style="font-size: 17px; margin-bottom: 2px;">' + customerInfo.phone + '</div>';
+      }
+      if (customerInfo.address) {
+        htmlContent += '<div style="font-size: 13px; margin-bottom: 2px;">' + customerInfo.address + '</div>';
+      }
+      if (customerInfo.postalCode) {
+        htmlContent += '<div class="bold" style="font-size: 18px;">' + customerInfo.postalCode + '</div>';
+      }
+      htmlContent += '</div><div class="divider"></div>';
+    }
+    
+    // Items - simple inline format
+    itemsList.forEach(item => {
+      htmlContent += '<div class="bold" style="font-size: 16px; margin: 5px 0;">';
+      htmlContent += item.qty + 'x ' + item.name + item.portion + ' &pound;' + item.price;
+      htmlContent += '</div>';
+      if (item.note) {
+        htmlContent += '<div style="font-size: 13px; padding-left: 5px; color: #555; margin: 2px 0 6px 0;">Note: ' + item.note + '</div>';
+      }
+    });
+    
+    htmlContent += '<div class="divider"></div>';
+    
+    // Subtotal
+    htmlContent += '<div style="font-size: 16px; margin: 6px 0;">Subtotal: &pound;' + subtotalStr + '</div>';
+    
+    // Discount
+    if (discountAmount > 0) {
+      let discountLabel = 'Discount:';
+      if (discountType === 'percentage' && discountInput) {
+        discountLabel = 'Discount (' + discountInput + '%):';
+      }
+      htmlContent += '<div style="font-size: 16px; margin: 6px 0;">' + discountLabel + ' -&pound;' + discountStr + '</div>';
+    }
+    
+    htmlContent += '<div class="divider"></div>';
+    
+    // Total
+    htmlContent += '<div class="bold" style="font-size: 20px; margin: 10px 0; padding: 8px 0; border-top: 2px solid #000; border-bottom: 2px solid #000;">';
+    htmlContent += 'TOTAL: &pound;' + totalAmount;
+    htmlContent += '</div>';
+    
+    htmlContent += '<div class="divider"></div>';
+    
+    // Payment info
+    htmlContent += '<div style="font-size: 14px; margin: 8px 0;"><strong>Payment:</strong> ' + String(printPaymentMethod) + '</div>';
+    htmlContent += '<div class="center bold" style="font-size: 22px; margin: 12px 0; padding: 12px 5px; border: 3px solid #000;">';
+    htmlContent += printIsPaid ? 'PAID' : 'NOT PAID';
+    htmlContent += '</div>';
+    htmlContent += '<div class="divider"></div>';
+    htmlContent += '<div class="center" style="font-size: 13px; margin-top: 8px;">Thank You!</div>';
+    
+    htmlContent += '</body></html>';
 
-    const discountHtml =
-      discountValue > 0
-        ? `<div>${discountLabel}: -£${discountValue.toFixed(2)}</div>`
-        : "";
-
-    const paymentSummary =
-      paymentMethod === "Card"
-        ? "Payment method: Card (mark completed in terminal)."
-        : `Payment method: ${paymentMethod}`;
-
-    const statusSummary = isPaid ? "Payment received" : "Awaiting payment";
-
-    const cashDetails =
-      paymentMethod === "Cash"
-        ? `<div>Amount received: £${amountReceivedNumber.toFixed(2)}</div>
-           <div>Change due: £${changeDue.toFixed(2)}</div>`
-        : "";
-
-    const receiptContent = `
-      <html>
-        <head>
-          <title>Receipt - ${currentOrderNumber}</title>
-          <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-          <style>
-            body { font-family: monospace; padding: 8px; font-size: 12px; width: 80mm; margin: 0 auto; }
-            h1 { text-align: center; margin-bottom: 2px; font-size: 18px; }
-            .center { text-align: center; }
-            .line { border-top: 1px dashed #000; margin: 6px 0; }
-            .order-number { font-size: 16px; font-weight: bold; text-align: center; margin: 4px 0; }
-            .total { font-size: 14px; font-weight: bold; text-align: right; }
-            .section-title { font-weight: bold; text-transform: uppercase; font-size: 11px; letter-spacing: 0.08em; margin-bottom: 2px; }
-            .note { font-size: 10px; margin-top: 3px; }
-            .item-line { margin-bottom: 4px; }
-            .item-note { font-size: 10px; color: #4b5563; margin-left: 12px; margin-top: 1px; }
-          </style>
-        </head>
-        <body>
-          <h1>The MoMos</h1>
-          <div class="center">Authentic Himalayan Street Food</div>
-          <div class="center">340 Kingston Road, SW20 8LR</div>
-          <div class="center">Tel: 0208 123 4567 • themomos.co.uk</div>
-          <div class="line"></div>
-          <div class="order-number">Order #${currentOrderNumber}</div>
-          <div>Date: ${effectiveTimestamp}</div>
-          <div>Service: ${orderType}</div>
-          ${customerDetails}
-          <div class="line"></div>
-          <div class="section-title">Items</div>
-          ${itemsHtml}
-          <div class="line"></div>
-          <div>Subtotal: £${subtotal.toFixed(2)}</div>
-          ${discountHtml}
-          <div>Tax: £${taxAmount.toFixed(2)}</div>
-          <div class="total">Total due: £${total.toFixed(2)}</div>
-          <div class="line"></div>
-          <div>${paymentSummary}</div>
-          ${cashDetails}
-          <div>Status: ${statusSummary}</div>
-          <div class="line"></div>
-          <div class="center note">Thank you </div>
-          
-        </body>
-      </html>`;
-
-    receiptWindow.document.write(receiptContent);
+    console.log("Total amount:", totalAmount);
+    console.log("HTML Content generated, length:", htmlContent.length);
+    
+    receiptWindow.document.write(htmlContent);
     receiptWindow.document.close();
-    receiptWindow.print();
-    receiptWindow.close();
-
-    resetOrderState();
-    setShowReceipt(false);
-    triggerToast("Receipt sent to printer");
+    
+    // Wait for content to fully render before printing
+    setTimeout(() => {
+      receiptWindow.focus();
+      receiptWindow.print();
+      
+      // Only reset state if not printing from saved receipt data
+      if (!receiptData) {
+        setTimeout(() => {
+          resetOrderState();
+          setShowReceipt(false);
+          triggerToast("Receipt sent to printer");
+        }, 1000);
+      }
+    }, 500);
   };
 
   const handlePreviewReceipt = () => {
@@ -729,83 +826,38 @@ export default function Order() {
     setShowReceipt(true);
   };
 
+  const handlePrintBillOnly = () => {
+    if (cart.length === 0) {
+      window.alert("No items in the cart to print.");
+      return;
+    }
+
+    // Generate order number if needed
+    const currentOrderNumber = orderNumber || generateOrderId();
+    if (!orderNumber) {
+      setOrderNumber(currentOrderNumber);
+    }
+
+    // Print directly without saving to database
+    handlePrintReceipt();
+  };
+
   const printOnlineOrderTicket = (order) => {
     if (typeof window === "undefined") return;
-    const receiptWindow = window.open("", "_blank");
-    if (!receiptWindow) return;
-
-    const orderDate = order.acceptedAt || order.createdAt || new Date().toISOString();
-    const displayDate = new Date(orderDate).toLocaleString();
-    const itemsHtml = (order.items || [])
-      .map((item) => {
-        const portionLabel = item.portion
-          ? ` (${formatPortionLabel(item.portion)})`
-          : "";
-        const lineTotal = Number(item.price || 0) * Number(item.quantity || 0);
-        return `${item.quantity} × ${item.name}${portionLabel} - £${lineTotal.toFixed(2)}`;
-      })
-      .join("<br/>");
-
-    const customerInfo = order.customer || {};
-    const total = Number(order.total || 0).toFixed(2);
-
-    const paymentSummary =
-      order.paymentMethod === "Card"
-        ? "Card payment to be collected securely by phone (never store card details)."
-        : `Payment method: ${order.paymentMethod || "Cash"}`;
-
-    const statusSummary = order.status ? `Status: ${order.status}` : "Status: Pending";
-
-    const content = `
-      <html>
-        <head>
-          <title>Online Order - ${order.orderId}</title>
-          <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-          <style>
-            body { font-family: monospace; padding: 8px; font-size: 12px; width: 80mm; margin: 0 auto; }
-            h1 { text-align: center; margin-bottom: 2px; font-size: 18px; }
-            .center { text-align: center; }
-            .line { border-top: 1px dashed #000; margin: 6px 0; }
-            .order-number { font-size: 16px; font-weight: bold; text-align: center; margin: 4px 0; }
-            .total { font-size: 14px; font-weight: bold; text-align: right; }
-            .section-title { font-weight: bold; text-transform: uppercase; font-size: 11px; letter-spacing: 0.08em; margin-top: 4px; }
-            .note { font-size: 10px; margin-top: 3px; }
-          </style>
-        </head>
-        <body>
-          <h1>The MoMos</h1>
-          <div class="center">Online Order Ticket</div>
-          <div class="center">340 Kingston Road, SW20 8LR</div>
-          <div class="center">Tel: 0208 123 4567 • themomos.co.uk</div>
-          <div class="line"></div>
-          <div class="order-number">Order #${order.orderId}</div>
-          <div>Date: ${displayDate}</div>
-          <div>${paymentSummary}</div>
-          <div>${statusSummary}</div>
-          <div class="line"></div>
-          <div class="section-title">Customer</div>
-          <div>Name: ${customerInfo.name || "-"}</div>
-          <div>Phone: ${customerInfo.phone || "-"}</div>
-          <div>Address: ${customerInfo.address || "-"}</div>
-          <div>Postal: ${customerInfo.postalCode || "-"}</div>
-          ${customerInfo.notes ? `<div>Notes: ${customerInfo.notes}</div>` : ""}
-          <div class="line"></div>
-          <div class="section-title">Items</div>
-          ${itemsHtml}
-          <div class="line"></div>
-          <div class="total">Total: £${total}</div>
-          <div class="line"></div>
-          <div class="center note">Card payments require an immediate phone call to capture details offline.</div>
-          <div class="center note">Serve hot • Thank you!</div>
-        </body>
-      </html>
-    `;
-
-    receiptWindow.document.write(content);
-    receiptWindow.document.close();
-    receiptWindow.focus();
-    receiptWindow.print();
-    receiptWindow.close();
+    
+    // Convert online order format to match our standard receipt data format
+    const receiptData = {
+      cart: order.items || [],
+      orderNumber: order.orderId,
+      timestamp: order.acceptedAt || order.createdAt ? new Date(order.acceptedAt || order.createdAt).toLocaleString() : new Date().toLocaleString(),
+      orderType: "ONLINE ORDER - DELIVER HOT",
+      customer: order.customer || {},
+      paymentMethod: order.paymentMethod || "Online",
+      isPaid: order.isPaid || false
+    };
+    
+    // Use the same print function for consistency
+    handlePrintReceipt(receiptData);
   };
 
   const acceptOnlineOrder = async (orderId) => {
@@ -1033,7 +1085,7 @@ export default function Order() {
             onItemNoteChange={handleItemNoteChange}
             onClearCart={clearCart}
             onOpenCustomItemModal={handleOpenCustomItemModal}
-            onPrintBill={handlePreviewReceipt}
+            onPrintBill={handlePrintBillOnly}
             onConfirmOrder={handleSubmitOrder}
             showCart={showCart}
             onHideCart={handleHideCart}
@@ -1107,6 +1159,7 @@ export default function Order() {
           amountReceived={amountReceived}
           changeDue={changeDue}
           isPaid={isPaid}
+          isNewCustomer={isNewCustomer}
           actionButtonClass={actionButtonClass}
           subtleButtonClass={subtleButtonClass}
           onPrint={handlePrintReceipt}

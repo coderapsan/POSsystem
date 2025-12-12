@@ -13,6 +13,7 @@ export default function Navbar({ scheme = "dark", isHidden = false }) {
     { href: "/order", label: "POS" },
     { href: "/order-history", label: "Order History" },
     { href: "/admin", label: "Admin" },
+    { href: "/customer-order-history", label: "Customer Orders" },
   ];
 
   const palette =

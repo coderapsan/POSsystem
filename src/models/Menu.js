@@ -14,6 +14,7 @@ const menuItemSchema = new mongoose.Schema({
   spicyLevel: String,
   allergens: { type: [String], default: [] },
   isAvailable: { type: Boolean, default: true },
+  imageUrl: { type: String, default: "" },
   legacyId: { type: Number, index: true }
 }, { timestamps: true });
 

@@ -13,19 +13,29 @@ export default async function handler(req, res) {
 
   try {
     await connectToDatabase();
+    
+    // Validate orderId format
+    if (typeof orderId !== "string" || orderId.trim() === "") {
+      return res.status(400).json({ success: false, error: "Invalid orderId format" });
+    }
+    
     const updatedOrder = await Order.findOneAndUpdate(
-      { orderId },
+      { orderId: orderId.trim() },
       { status: "accepted", acceptedAt: new Date() },
-      { new: true }
+      { new: true, runValidators: true }
     );
 
     if (!updatedOrder) {
-      return res.status(404).json({ success: false, error: "Order not found" });
+      console.warn(`Order not found for orderId: ${orderId}`);
+      return res.status(404).json({ success: false, error: `Order #${orderId} not found in system` });
     }
 
     return res.status(200).json({ success: true, order: updatedOrder });
   } catch (error) {
     console.error("Error accepting order:", error);
-    return res.status(500).json({ success: false, error: error.message });
+    return res.status(500).json({ 
+      success: false, 
+      error: error.message || "Failed to accept order. Please try again." 
+    });
   }
 }

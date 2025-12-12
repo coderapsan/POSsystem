@@ -38,59 +38,88 @@ export default function OrderHistory() {
   }
 
   function handlePrint(order) {
-    const receiptContent = `
-      <html>
-        <head>
-          <title>Receipt - ${order.orderId}</title>
-          <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-          <style>
-            body { font-family: monospace; padding: 8px; font-size: 12px; width: 80mm; margin: 0 auto; }
-            h1 { text-align: center; margin-bottom: 4px; font-size: 18px; }
-            .center { text-align: center; }
-            .line { border-top: 1px dashed #000; margin: 5px 0; }
-            .bold { font-weight: bold; }
-            .total { font-size: 14px; font-weight: bold; text-align: right; }
-            .order-number { font-size: 16px; font-weight: bold; text-align: center; margin: 4px 0; }
-          </style>
-        </head>
-        <body>
-          <h1>The MoMos</h1>
-          <div class="center">340 Kingston Road, SW20 8LR</div>
-          <div class="center">Tel: 0208 123 4567</div>
-          <div class="line"></div>
-          <div class="order-number">#${order.orderId}</div>
-          <div>Date: ${new Date(order.createdAt).toLocaleString()}</div>
-          <div>Type: ${order.orderType}</div>
-          ${order.customerName || (order.customer && order.customer.name)
-            ? `<div class="line"></div>
-               <div><strong>Customer Info:</strong></div>
-               <div>Name: ${order.customerName || (order.customer && order.customer.name) || "-"}</div>
-               <div>Phone: ${(order.customer && order.customer.phone) || "-"}</div>
-               <div>Address: ${(order.customer && order.customer.address) || "-"}</div>
-               <div>Postal: ${(order.customer && order.customer.postalCode) || "-"}</div>`
-            : ""
-          }
-          <div class="line"></div>
-          ${order.items
-            .map(
-              (item) =>
-                `${item.quantity} × ${item.name} (${item.portion}) - £${(
-                  item.price * item.quantity
-                ).toFixed(2)}`
-            )
-            .join("<br/>")}
-          <div class="line"></div>
-          <div>Subtotal: £${order.total.toFixed(2)}</div>
-          <div class="total">Total: £${order.total.toFixed(2)}</div>
-          <div class="line"></div>
-          <div>Payment: ${order.paymentMethod}</div>
-          <div>Status: ${order.isPaid ? "Paid" : "Pending Cash"}</div>
-          <div class="line"></div>
-          <div class="center">Thank You! Visit Again</div>
-        </body>
-      </html>`;
     const receiptWindow = window.open("", "_blank");
-    receiptWindow.document.write(receiptContent);
+    if (!receiptWindow) return;
+
+    const itemsHtml = (order.items || [])
+      .map((item) => {
+        const qty = Number(item.quantity) || 0;
+        const priceEach = Number(item.price) || 0;
+        const lineTotal = qty * priceEach;
+        const portion = item.portion ? ` (${item.portion})` : "";
+        return `<div style="margin: 5px 0;">
+          <div style="display: flex; justify-content: space-between; font-size: 15px; font-weight: bold;">
+            <div style="flex: 1;">${qty}x ${item.name}${portion}</div>
+            <div style="text-align: right; min-width: 60px;">£${lineTotal.toFixed(2)}</div>
+          </div>
+        </div>`;
+      })
+      .join("");
+
+    const customerSection = order.customerName || order.customer?.name ? `<div style="margin: 8px 0; padding: 8px 0; border-bottom: 1px solid #000;">
+      <div style="font-weight: bold; font-size: 15px; margin-bottom: 3px;">${order.customerName || order.customer?.name}</div>
+      ${order.customer?.phone ? `<div style="font-size: 16px; font-weight: bold; margin-bottom: 2px;">${order.customer.phone}</div>` : ""}
+      ${order.customer?.address ? `<div style="font-size: 12px; margin-bottom: 2px;">${order.customer.address}</div>` : ""}
+      ${order.customer?.postalCode ? `<div style="font-size: 17px; font-weight: bold;">${order.customer.postalCode}</div>` : ""}
+    </div><div class="divider"></div>` : "";
+
+    const html = `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Receipt</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { 
+      font-family: 'Courier New', monospace; 
+      width: 80mm; 
+      max-width: 80mm;
+      padding: 5mm; 
+      background: white; 
+      font-size: 13px; 
+      line-height: 1.4;
+      text-align: left;
+    }
+    .divider { border-bottom: 1px dashed #333; margin: 6px 0; }
+  </style>
+</head>
+<body>
+  <div style="text-align: center; font-weight: bold; font-size: 16px; margin-bottom: 3px;">The MoMos</div>
+  <div style="text-align: center; font-size: 12px; margin-bottom: 8px;">340 Kingston Rd, SW20 8LR<br/>0208 123 4567</div>
+  
+  <div class="divider"></div>
+  
+  <div style="text-align: center; font-weight: bold; font-size: 28px; margin: 8px 0;">#${order.orderId}</div>
+  <div style="text-align: center; font-size: 12px; margin-bottom: 8px;">${order.orderType || "Order"}<br/>${new Date(order.createdAt || Date.now()).toLocaleString()}</div>
+  
+  <div class="divider"></div>
+   
+  ${customerSection}
+  
+  <div style="margin: 8px 0;">
+    ${itemsHtml}
+  </div>
+  
+  <div class="divider"></div>
+  
+  <div style="display: flex; justify-content: space-between; font-weight: bold; font-size: 18px; margin: 10px 0; padding: 5px 0;">
+    <span>TOTAL:</span>
+    <span style="text-align: right;">£${Number(order.total || 0).toFixed(2)}</span>
+  </div>
+  
+  <div class="divider"></div>
+  
+  <div style="font-size: 13px; margin: 6px 0;"><strong>Payment:</strong> ${order.paymentMethod || "-"}</div>
+  <div style="text-align: center; font-weight: bold; font-size: 16px; background: #000; color: white; padding: 8px; margin: 8px 0;">${order.isPaid ? "PAID" : "NOT PAID"}</div>
+  
+  <div class="divider"></div>
+  
+  <div style="text-align: center; font-size: 12px; margin-top: 6px;">Thank You!</div>
+</body>
+</html>`;
+
+    receiptWindow.document.write(html);
+    receiptWindow.document.close();
     receiptWindow.print();
     receiptWindow.close();
   }
