@@ -255,80 +255,86 @@ export default function Home() {
         </header>
 
         <main className="mx-auto flex max-w-6xl flex-col gap-12 px-4 pb-16 sm:px-6 lg:px-8">
-          <section className="relative overflow-hidden rounded-[48px] border border-white/10 bg-gradient-to-br from-[#131f37] via-[#0b162a] to-[#050b18] px-6 py-16 text-center shadow-2xl shadow-black/60 sm:px-12">
+          <section className="relative overflow-hidden rounded-[32px] sm:rounded-[48px] border border-white/10 bg-gradient-to-br from-[#131f37] via-[#0b162a] to-[#050b18] px-6 py-12 sm:px-12 sm:py-20 text-center shadow-2xl shadow-black/60">
             <div className="pointer-events-none absolute inset-0 -z-10 opacity-70">
-              <div className="absolute -left-20 top-[-40%] h-[120%] w-[60%] rounded-full bg-[#f26b30]/20 blur-3xl" />
-              <div className="absolute -right-32 bottom-[-30%] h-[100%] w-[65%] rounded-full bg-cyan-500/10 blur-3xl" />
+              <div className="absolute -left-20 top-[-40%] h-[120%] w-[60%] rounded-full bg-[#f26b30]/30 blur-3xl" />
+              <div className="absolute -right-32 bottom-[-30%] h-[100%] w-[65%] rounded-full bg-cyan-500/15 blur-3xl" />
               <div className="absolute inset-0 bg-gradient-to-br from-[#050b18]/70 via-[#050b18]/60 to-[#050b18]/90" />
             </div>
-            <p className="text-xs uppercase tracking-[0.45em] text-[#f26b30]">Authentic Himalayan Street Food</p>
-            <h2 className="mt-5 text-4xl font-semibold text-white sm:text-5xl">
-              Craving MoMos? Order Fresh, Fast &amp; Online.
+            <p className="text-xs sm:text-sm uppercase tracking-[0.45em] text-[#f26b30] font-semibold">Authentic Himalayan Street Food</p>
+            <h2 className="mt-4 sm:mt-6 text-3xl sm:text-5xl lg:text-6xl font-bold text-white leading-tight">
+              Craving MoMos?<br className="hidden sm:inline" /> <span className="text-[#f26b30]">Order Fresh</span>, Fast &amp; Online.
             </h2>
-            <p className="mx-auto mt-4 max-w-2xl text-sm text-slate-200 sm:text-base">
+            <p className="mx-auto mt-4 sm:mt-6 max-w-2xl text-sm sm:text-base lg:text-lg text-slate-200 leading-relaxed">
               Explore our hand-folded momos, aromatic noodles, and wok-tossed specials. Place your order in a few taps and we'll start cooking straight away.
             </p>
-            <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
+            <div className="mt-8 sm:mt-10 flex flex-col items-center justify-center gap-3 sm:flex-row sm:gap-4">
               <Link
                 href="/customerOrder"
-                className="inline-flex items-center justify-center rounded-full bg-[#f26b30] px-8 py-3 text-sm font-semibold text-white shadow-lg shadow-[#f26b30]/30 transition hover:bg-[#ff7a3e]"
+                className="w-full sm:w-auto inline-flex items-center justify-center rounded-full bg-[#f26b30] px-8 sm:px-10 py-3 sm:py-4 text-sm sm:text-base font-bold text-white shadow-xl shadow-[#f26b30]/40 transition hover:bg-[#ff7a3e] hover:scale-105 hover:shadow-2xl hover:shadow-[#f26b30]/50"
               >
-                Order food online
+                🍜 Order Food Online
               </Link>
-              <span className="inline-flex items-center rounded-full border border-white/15 px-4 py-2 text-xs font-medium uppercase tracking-[0.28em] text-slate-300">
-                Delivery &amp; collection available daily
+              <span className="inline-flex items-center rounded-full border border-white/20 bg-white/5 backdrop-blur px-4 sm:px-5 py-2 sm:py-3 text-xs sm:text-sm font-medium uppercase tracking-[0.25em] text-slate-200">
+                🚚 Delivery · 🥡 Collection
               </span>
             </div>
-            <p className="mt-4 text-xs text-[#f6ceb5]">
-              Note: If you choose card at checkout, we will call you back to securely collect payment details.
+            <p className="mt-4 sm:mt-6 text-xs sm:text-sm text-[#f6ceb5] bg-black/20 backdrop-blur rounded-full inline-block px-4 py-2">
+              💳 Card payment? We'll call to process securely
             </p>
           </section>
 
-          <section className="space-y-4">
+          <section className="space-y-4 sm:space-y-6">
             <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
               <div>
-                <p className="text-xs uppercase tracking-[0.35em] text-[#f26b30]">Menu Highlights</p>
-                <h3 className="text-2xl font-semibold text-white">Fresh from the steamer &amp; wok</h3>
+                <p className="text-xs sm:text-sm uppercase tracking-[0.35em] text-[#f26b30] font-semibold">Menu Highlights</p>
+                <h3 className="text-2xl sm:text-3xl font-bold text-white">Fresh from the steamer &amp; wok</h3>
               </div>
               <Link
                 href="/customerOrder"
-                className="self-start rounded-full border border-white/10 px-4 py-2 text-xs font-semibold uppercase tracking-[0.3em] text-slate-200 transition hover:border-[#f26b30] hover:text-white"
+                className="self-start rounded-full border border-white/10 px-4 sm:px-5 py-2 sm:py-2.5 text-xs font-semibold uppercase tracking-[0.3em] text-slate-200 transition hover:border-[#f26b30] hover:text-white hover:bg-[#f26b30]/10"
               >
-                Browse full menu
+                Browse full menu →
               </Link>
             </div>
             {menuLoading ? (
-              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              <div className="grid gap-4 sm:gap-5 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
                 {[...Array(6)].map((_, index) => (
                   <div
                     key={`skeleton-${index}`}
                     className="animate-pulse rounded-3xl border border-white/10 bg-[#0f1628] p-5"
                   >
-                    <div className="h-36 rounded-2xl bg-white/5" />
+                    <div className="h-36 sm:h-40 rounded-2xl bg-white/5" />
                     <div className="mt-4 h-4 rounded bg-white/10" />
                     <div className="mt-2 h-3 rounded bg-white/5" />
                   </div>
                 ))}
               </div>
             ) : (
-              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              <div className="grid gap-4 sm:gap-5 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
                 {highlights.map((item, index) => (
                   <article
                     key={`${item.name}-${index}`}
-                    className="flex h-full flex-col overflow-hidden rounded-3xl border border-white/10 bg-[#0f1628] shadow-lg shadow-black/40"
+                    className="group flex h-full flex-col overflow-hidden rounded-3xl border border-white/10 bg-[#0f1628] shadow-lg shadow-black/40 transition-all hover:border-[#f26b30]/50 hover:shadow-2xl hover:shadow-[#f26b30]/20 hover:-translate-y-1"
                   >
-                    <div className="relative h-40 w-full overflow-hidden">
-                      <img src={item.image} alt={item.name} className="h-full w-full object-cover" loading="lazy" />
-                      <span className="absolute left-3 top-3 rounded-full bg-black/70 px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-white">
+                    <div className="relative h-48 sm:h-52 w-full overflow-hidden">
+                      <img 
+                        src={item.image} 
+                        alt={item.name} 
+                        className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-110" 
+                        loading="lazy" 
+                      />
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+                      <span className="absolute left-3 top-3 rounded-full bg-black/70 backdrop-blur-sm px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.2em] text-white border border-white/20">
                         {item.category}
                       </span>
                     </div>
-                    <div className="flex flex-1 flex-col gap-3 px-5 py-4">
-                      <h4 className="text-lg font-semibold text-white">{item.name}</h4>
+                    <div className="flex flex-1 flex-col gap-3 px-5 py-5">
+                      <h4 className="text-lg sm:text-xl font-bold text-white group-hover:text-[#f26b30] transition-colors">{item.name}</h4>
                       <p className="flex-1 text-sm leading-relaxed text-slate-300">{item.description}</p>
-                      <div className="flex items-center justify-between text-xs text-slate-400">
-                        <span>{item.priceLabel}</span>
-                        <span className="rounded-full bg-[#f26b30]/10 px-3 py-1 text-[#f26b30]">House favourite</span>
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="font-bold text-[#f26b30] text-base sm:text-lg">{item.priceLabel}</span>
+                        <span className="rounded-full bg-[#f26b30]/15 px-3 py-1.5 text-xs font-semibold text-[#f26b30] border border-[#f26b30]/30">★ House favourite</span>
                       </div>
                     </div>
                   </article>

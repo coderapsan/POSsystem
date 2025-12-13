@@ -1139,11 +1139,11 @@ export default function Order() {
     <StaffGate>
       <div className="min-h-screen bg-[#f3f4f6] text-slate-900">
         <Navbar scheme="light" isHidden={navHidden} />
-        <main className="mx-auto flex max-w-7xl flex-col gap-6 px-4 py-8 pb-56 sm:px-6 lg:px-8 lg:pb-12">
+        <main className="mx-auto flex max-w-7xl flex-col gap-4 sm:gap-6 px-3 sm:px-4 lg:px-8 py-4 sm:py-6 lg:py-8 pb-[32rem] sm:pb-[28rem] lg:pb-12">
         <OrderHeader subtleButtonClass={subtleButtonClass} />
 
-        <section className="grid gap-6 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
-          <div className="flex flex-col gap-6">
+        <section className="grid gap-4 sm:gap-6 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
+          <div className="flex flex-col gap-4 sm:gap-6">
             <MenuSearch
               searchTerm={searchTerm}
               onSearchChange={(event) => setSearchTerm(event.target.value)}
