@@ -1445,7 +1445,8 @@ export default function Admin() {
   }
 
   async function handleClearMenu() {
-    if (masterPassword !== "MasterNepal") {
+    const MASTER_PASSWORD = process.env.NEXT_PUBLIC_MASTER_PASSWORD || "MasterNepal";
+    if (masterPassword !== MASTER_PASSWORD) {
       notify("Invalid master password", "error");
       return;
     }

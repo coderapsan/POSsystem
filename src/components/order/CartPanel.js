@@ -269,7 +269,7 @@ export default function CartPanel({
               className={`${subtleButtonClass} py-2 rounded-lg font-semibold text-xs`}
               disabled={!hasCartItems}
             >
-              submit order
+              save order
             </button>
             <button
               onClick={onPrintBill}

@@ -15,6 +15,9 @@ export default function OrderHistory() {
         const data = await res.json();
         if (data.success) {
           setOrders(data.orders);
+          if (data.warning) {
+            setError("⚠️ Database not configured - order history not available");
+          }
         } else {
           setError(data.error || "Failed to fetch orders");
         }
@@ -47,20 +50,17 @@ export default function OrderHistory() {
         const priceEach = Number(item.price) || 0;
         const lineTotal = qty * priceEach;
         const portion = item.portion ? ` (${item.portion})` : "";
-        return `<div style="margin: 5px 0;">
-          <div style="display: flex; justify-content: space-between; font-size: 15px; font-weight: bold;">
-            <div style="flex: 1;">${qty}x ${item.name}${portion}</div>
-            <div style="text-align: right; min-width: 60px;">£${lineTotal.toFixed(2)}</div>
-          </div>
+        return `<div style="margin: 3px 0;">
+          <div style="font-size: 17px; font-weight: bold;">${qty}x ${item.name}${portion} £${lineTotal.toFixed(2)}</div>
         </div>`;
       })
       .join("");
 
-    const customerSection = order.customerName || order.customer?.name ? `<div style="margin: 8px 0; padding: 8px 0; border-bottom: 1px solid #000;">
-      <div style="font-weight: bold; font-size: 15px; margin-bottom: 3px;">${order.customerName || order.customer?.name}</div>
+    const customerSection = order.customerName || order.customer?.name ? `<div style="margin: 5px 0; padding: 4px 0; border-bottom: 1px solid #000;">
+      <div style="font-weight: bold; font-size: 14px; margin-bottom: 2px;">${order.customerName || order.customer?.name}</div>
       ${order.customer?.phone ? `<div style="font-size: 16px; font-weight: bold; margin-bottom: 2px;">${order.customer.phone}</div>` : ""}
-      ${order.customer?.address ? `<div style="font-size: 12px; margin-bottom: 2px;">${order.customer.address}</div>` : ""}
-      ${order.customer?.postalCode ? `<div style="font-size: 17px; font-weight: bold;">${order.customer.postalCode}</div>` : ""}
+      ${order.customer?.address ? `<div style="font-size: 11px; margin-bottom: 2px;">${order.customer.address}</div>` : ""}
+      ${order.customer?.postalCode ? `<div style="font-size: 16px; font-weight: bold;">${order.customer.postalCode}</div>` : ""}
     </div><div class="divider"></div>` : "";
 
     const html = `<!DOCTYPE html>
@@ -72,25 +72,26 @@ export default function OrderHistory() {
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body { 
       font-family: 'Courier New', monospace; 
-      width: 80mm; 
-      max-width: 80mm;
-      padding: 5mm; 
+      width: 44mm; 
+      max-width: 44mm;
+      padding: 0; 
+      margin: 0;
       background: white; 
-      font-size: 13px; 
-      line-height: 1.4;
+      font-size: 14px; 
+      line-height: 1.5;
       text-align: left;
     }
-    .divider { border-bottom: 1px dashed #333; margin: 6px 0; }
+    .divider { border-bottom: 1px dashed #333; margin: 5px 0; }
   </style>
 </head>
 <body>
-  <div style="text-align: center; font-weight: bold; font-size: 16px; margin-bottom: 3px;">The MoMos</div>
-  <div style="text-align: center; font-size: 12px; margin-bottom: 8px;">340 Kingston Rd, SW20 8LR<br/>0208 123 4567</div>
+  <div style="text-align: center; font-weight: bold; font-size: 16px; margin-bottom: 2px;">The MoMos</div>
+  <div style="text-align: center; font-size: 11px; margin-bottom: 5px;">340 Kingston Rd, SW20 8LR<br/>0208 123 4567</div>
   
   <div class="divider"></div>
   
-  <div style="text-align: center; font-weight: bold; font-size: 28px; margin: 8px 0;">#${order.orderId}</div>
-  <div style="text-align: center; font-size: 12px; margin-bottom: 8px;">${order.orderType || "Order"}<br/>${new Date(order.createdAt || Date.now()).toLocaleString()}</div>
+  <div style="text-align: center; font-weight: bold; font-size: 28px; margin: 5px 0;">#${order.orderId}</div>
+  <div style="text-align: center; font-size: 12px; margin-bottom: 5px;">${order.orderType || "Order"}<br/>${new Date(order.createdAt || Date.now()).toLocaleString()}</div>
   
   <div class="divider"></div>
    
@@ -102,15 +103,11 @@ export default function OrderHistory() {
   
   <div class="divider"></div>
   
-  <div style="display: flex; justify-content: space-between; font-weight: bold; font-size: 18px; margin: 10px 0; padding: 5px 0;">
-    <span>TOTAL:</span>
-    <span style="text-align: right;">£${Number(order.total || 0).toFixed(2)}</span>
-  </div>
+  <div style="font-weight: bold; font-size: 18px; margin: 8px 0; padding: 4px 0;">TOTAL: £${Number(order.total || 0).toFixed(2)}</div>
   
   <div class="divider"></div>
   
-  <div style="font-size: 13px; margin: 6px 0;"><strong>Payment:</strong> ${order.paymentMethod || "-"}</div>
-  <div style="text-align: center; font-weight: bold; font-size: 16px; background: #000; color: white; padding: 8px; margin: 8px 0;">${order.isPaid ? "PAID" : "NOT PAID"}</div>
+  <div style="text-align: center; font-weight: bold; font-size: 18px; margin: 8px 0; text-decoration: underline;">${order.isPaid ? ((order.paymentMethod || 'Cash') + ' Paid') : ((order.paymentMethod || 'Cash') + ' Not Paid')}</div>
   
   <div class="divider"></div>
   

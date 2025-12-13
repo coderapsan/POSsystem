@@ -3,7 +3,7 @@ import { promises as fs } from "fs";
 import dbConnect from "../../../lib/mongodb";
 import Menu from "../../../models/Menu";
 
-const MASTER_PASSWORD = "MasterNepal";
+const MASTER_PASSWORD = process.env.MASTER_PASSWORD || "MasterNepal";
 
 function toNumber(value) {
   const parsed = Number(value);

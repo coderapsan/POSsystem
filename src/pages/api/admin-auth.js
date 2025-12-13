@@ -1,7 +1,7 @@
 import { NextApiRequest, NextApiResponse } from "next";
 
-let adminPassword = "admin123"; // Default password, can be changed via API
-const MASTER_PASSWORD = "MasterNepal";
+let adminPassword = process.env.ADMIN_PASSWORD || "admin123"; // Default password, can be changed via API
+const MASTER_PASSWORD = process.env.MASTER_PASSWORD || "MasterNepal";
 
 export default function handler(req, res) {
   if (req.method === "POST") {

@@ -82,7 +82,24 @@ async function seedMenuFromJson() {
 }
 
 export default async function handler(req, res) {
-  await dbConnect();
+  try {
+    await dbConnect();
+  } catch (dbError) {
+    // If DB connection fails, load from JSON file for GET requests
+    if (req.method === "GET") {
+      try {
+        const jsonPath = path.join(process.cwd(), "src", "data", "momos.json");
+        const raw = await fs.readFile(jsonPath, "utf-8");
+        const menuData = JSON.parse(raw);
+        return res.status(200).json({ success: true, menu: menuData, source: "json-fallback" });
+      } catch (jsonError) {
+        console.error("Failed to load menu from JSON:", jsonError);
+        return res.status(500).json({ success: false, error: "Database connection failed and JSON fallback failed" });
+      }
+    }
+    // For other methods, return error
+    return res.status(500).json({ success: false, error: "Database connection required for this operation" });
+  }
 
   try {
     switch (req.method) {
@@ -211,7 +228,8 @@ export default async function handler(req, res) {
           return res.status(200).json({ success: true });
         }
 
-        if (password !== "MasterNepal") {
+        const MASTER_PASSWORD = process.env.MASTER_PASSWORD || "MasterNepal";
+        if (password !== MASTER_PASSWORD) {
           return res.status(403).json({ success: false, error: "Invalid password" });
         }
 

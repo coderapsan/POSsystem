@@ -29,6 +29,16 @@ export default async function handler(req, res) {
       return res.status(200).json({ success: true, orderId: newOrder.orderId });
     } catch (error) {
       console.error("Error saving order:", error);
+      
+      // If database not configured, return success anyway (POS should still work)
+      if (error.message === 'DATABASE_NOT_CONFIGURED') {
+        return res.status(200).json({ 
+          success: true, 
+          orderId: req.body.orderId,
+          warning: 'Database not configured - order not saved' 
+        });
+      }
+      
       return res.status(500).json({ success: false, error: error.message });
     }
   } else if (req.method === "GET") {
@@ -43,6 +53,16 @@ export default async function handler(req, res) {
       return res.status(200).json({ success: true, orders });
     } catch (error) {
       console.error("Error fetching orders:", error);
+      
+      // If database not configured, return empty array
+      if (error.message === 'DATABASE_NOT_CONFIGURED') {
+        return res.status(200).json({ 
+          success: true, 
+          orders: [],
+          warning: 'Database not configured' 
+        });
+      }
+      
       return res.status(500).json({ success: false, error: error.message });
     }
   } else if (req.method === "DELETE") {

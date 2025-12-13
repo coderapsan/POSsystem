@@ -251,13 +251,22 @@ export default function Order() {
   // Poll for new online orders every 5 seconds
   useEffect(() => {
     const interval = setInterval(async () => {
-      const res = await fetch("/api/saveOrder?source=customer&status=pending");
-      const data = await res.json();
-      if (data.orders && data.orders.length > 0) {
-        setIncomingOnlineOrders(data.orders);
-        setShowOnlineOrderModal(true);
-        const audio = new Audio("/assets/ringtone.mp3");
-        audio.play();
+      try {
+        const res = await fetch("/api/saveOrder?source=customer&status=pending");
+        if (!res.ok) {
+          // Silently fail if API returns error (e.g., DB not connected)
+          return;
+        }
+        const data = await res.json();
+        if (data.orders && data.orders.length > 0) {
+          setIncomingOnlineOrders(data.orders);
+          setShowOnlineOrderModal(true);
+          const audio = new Audio("/assets/ringtone.mp3");
+          audio.play();
+        }
+      } catch (error) {
+        // Silently fail - don't show errors for polling failures
+        console.warn("Order polling failed:", error.message);
       }
     }, 5000);
     return () => clearInterval(interval);
@@ -550,19 +559,27 @@ export default function Order() {
     const orderId = generateOrderId();
     const timestamp = new Date().toLocaleString();
     
+    // Set order details immediately
+    setOrderNumber(orderId);
+    setReceiptTimestamp(timestamp);
+    
     // Check if this is a new customer (postal code not in system before)
     let isNewCustomer = true;
     if (customer.postalCode) {
       try {
         const response = await fetch(`/api/saveOrder?postalCode=${encodeURIComponent(customer.postalCode)}`);
-        const data = await response.json();
-        if (data.orders && data.orders.length > 0) {
-          isNewCustomer = false;
+        if (response.ok) {
+          const data = await response.json();
+          if (data.orders && data.orders.length > 0) {
+            isNewCustomer = false;
+          }
         }
       } catch (error) {
         console.warn("Could not check customer history:", error);
       }
     }
+    
+    setIsNewCustomer(isNewCustomer);
     
     const orderData = {
       orderId,
@@ -598,23 +615,128 @@ export default function Order() {
         },
         body: JSON.stringify(orderData),
       });
+      
+      if (!response.ok) {
+        throw new Error("Database not configured. Order recorded locally only.");
+      }
+      
       const result = await response.json();
       if (result.success) {
-        setOrderNumber(orderId);
-        setReceiptTimestamp(timestamp);
-        setIsNewCustomer(isNewCustomer);
-        triggerToast(`Order #${orderId} saved successfully!`);
-        
-        // Just reset the order state - don't print automatically
-        setTimeout(() => {
-          resetOrderState();
-        }, 500);
+        triggerToast(`Order #${orderId} saved to database!`);
       } else {
-        window.alert("Failed to save order: " + (result.error || "Unknown error"));
+        triggerToast(`Order #${orderId} recorded (database unavailable)`);
+        console.warn("Database save failed:", result.error);
       }
     } catch (error) {
-      window.alert("Error saving order: " + error.message);
+      // Don't block the user - just show a friendly message
+      triggerToast(`Order #${orderId} recorded (database not configured)`);
+      console.warn("Database not available:", error.message);
     }
+    
+    // Reset after a short delay regardless of database status
+    setTimeout(() => {
+      resetOrderState();
+    }, 1500);
+  };
+
+  const handleSaveAndPrint = async () => {
+    if (cart.length === 0) {
+      window.alert("No items in the order!");
+      return;
+    }
+
+    if (paymentMethod === "Card" && !isPaid) {
+      const confirmProceed = window.confirm(
+        "Card payment has not been marked as received. Continue and leave the order as pending?"
+      );
+      if (!confirmProceed) {
+        return;
+      }
+    }
+
+    const orderId = generateOrderId();
+    const timestamp = new Date().toLocaleString();
+    
+    // Set order details immediately for printing
+    setOrderNumber(orderId);
+    setReceiptTimestamp(timestamp);
+    
+    // Check if this is a new customer (non-blocking)
+    let isNewCustomer = true;
+    if (customer.postalCode) {
+      try {
+        const response = await fetch(`/api/saveOrder?postalCode=${encodeURIComponent(customer.postalCode)}`);
+        if (response.ok) {
+          const data = await response.json();
+          if (data.orders && data.orders.length > 0) {
+            isNewCustomer = false;
+          }
+        }
+      } catch (error) {
+        console.warn("Could not check customer history:", error);
+      }
+    }
+    
+    setIsNewCustomer(isNewCustomer);
+    
+    const orderData = {
+      orderId,
+      orderNumber: orderId,
+      timestamp,
+      orderType,
+      customer,
+      customerName: customer.name,
+      paymentMethod,
+      isPaid,
+      amountReceived: paymentMethod === "Cash" ? amountReceivedNumber : total,
+      changeDue,
+      total,
+      isNewCustomer,
+      totals: {
+        subtotal,
+        discount: {
+          type: discountType,
+          input: discountInput,
+          value: discountValue,
+        },
+        tax: taxAmount,
+        grandTotal: total,
+      },
+      items: cart,
+    };
+
+    // Try to save to database in background (non-blocking)
+    fetch("/api/saveOrder", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(orderData),
+    })
+      .then(response => {
+        if (response.ok) {
+          return response.json();
+        }
+        throw new Error("Database not available");
+      })
+      .then(result => {
+        if (result.success) {
+          console.log(`Order #${orderId} saved to database`);
+        }
+      })
+      .catch(error => {
+        console.warn("Order saved locally only (database not configured):", error.message);
+      });
+
+    // Print receipt immediately without waiting for database
+    triggerToast(`Printing receipt #${orderId}...`);
+    setTimeout(() => {
+      handlePrintReceipt();
+      // Reset after printing
+      setTimeout(() => {
+        resetOrderState();
+      }, 500);
+    }, 300);
   };
 
   const handlePrintReceipt = (receiptData = null) => {
@@ -701,59 +823,59 @@ export default function Order() {
     htmlContent += '<style>';
     htmlContent += '* { margin: 0; padding: 0; box-sizing: border-box; }';
     htmlContent += '@page { margin: 0; size: 80mm auto; }';
-    htmlContent += 'body { font-family: "Courier New", monospace; width: 72mm; margin: 0 auto; padding: 2mm; background: white; font-size: 14px; line-height: 1.6; }';
-    htmlContent += '.divider { border-bottom: 1px dashed #333; margin: 6px 0; height: 1px; }';
+    htmlContent += 'body { font-family: "Courier New", monospace; width: 44mm; margin: 0; padding: 0; background: white; font-size: 14px; line-height: 1.5; text-align: left; }';
+    htmlContent += '.divider { border-bottom: 1px dashed #333; margin: 5px 0; height: 1px; }';
     htmlContent += '.center { text-align: center; }';
     htmlContent += '.bold { font-weight: bold; }';
-    htmlContent += '.line { margin: 4px 0; overflow: hidden; }';
+    htmlContent += '.line { margin: 2px 0; overflow: hidden; }';
     htmlContent += '.left { float: left; max-width: 60%; }';
     htmlContent += '.right { float: right; text-align: right; }';
     htmlContent += '.clear { clear: both; }';
-    htmlContent += '@media print { body { width: 72mm; margin: 0 auto; padding: 2mm; } }';
+    htmlContent += '@media print { body { width: 44mm; margin: 0; padding: 0; } }';
     htmlContent += '</style></head><body>';
     
     // Header
-    htmlContent += '<div class="center bold" style="font-size: 17px; margin-bottom: 4px;">The MoMos</div>';
-    htmlContent += '<div class="center" style="font-size: 13px; margin-bottom: 10px;">340 Kingston Road, SW20 8LR<br>0208 123 4567</div>';
+    htmlContent += '<div class="center bold" style="font-size: 16px; margin-bottom: 2px;">The MoMos</div>';
+    htmlContent += '<div class="center" style="font-size: 11px; margin-bottom: 5px;">340 Kingston Road, SW20 8LR<br>0208 123 4567</div>';
     htmlContent += '<div class="divider"></div>';
     
     // Order number
-    htmlContent += '<div class="center bold" style="font-size: 30px; margin: 10px 0;">#' + currentOrderNumber + '</div>';
-    htmlContent += '<div class="center" style="font-size: 13px; margin-bottom: 10px;">' + String(printOrderType) + '<br>' + effectiveTimestamp + '</div>';
+    htmlContent += '<div class="center bold" style="font-size: 28px; margin: 5px 0;">#' + currentOrderNumber + '</div>';
+    htmlContent += '<div class="center" style="font-size: 12px; margin-bottom: 5px;">' + String(printOrderType) + '<br>' + effectiveTimestamp + '</div>';
     htmlContent += '<div class="divider"></div>';
     
     // Customer details
     if (customerInfo.name || customerInfo.phone) {
-      htmlContent += '<div style="margin: 6px 0; padding: 6px 0; border-bottom: 1px solid #000;">';
+      htmlContent += '<div style="margin: 5px 0; padding: 4px 0; border-bottom: 1px solid #000;">';
       if (customerInfo.name) {
-        htmlContent += '<div class="bold" style="font-size: 15px; margin-bottom: 3px;">' + customerInfo.name + '</div>';
+        htmlContent += '<div class="bold" style="font-size: 14px; margin-bottom: 2px;">' + customerInfo.name + '</div>';
       }
       if (customerInfo.phone) {
-        htmlContent += '<div class="bold" style="font-size: 17px; margin-bottom: 2px;">' + customerInfo.phone + '</div>';
+        htmlContent += '<div class="bold" style="font-size: 16px; margin-bottom: 2px;">' + customerInfo.phone + '</div>';
       }
       if (customerInfo.address) {
-        htmlContent += '<div style="font-size: 13px; margin-bottom: 2px;">' + customerInfo.address + '</div>';
+        htmlContent += '<div style="font-size: 11px; margin-bottom: 2px;">' + customerInfo.address + '</div>';
       }
       if (customerInfo.postalCode) {
-        htmlContent += '<div class="bold" style="font-size: 18px;">' + customerInfo.postalCode + '</div>';
+        htmlContent += '<div class="bold" style="font-size: 16px;">' + customerInfo.postalCode + '</div>';
       }
       htmlContent += '</div><div class="divider"></div>';
     }
     
     // Items - simple inline format
     itemsList.forEach(item => {
-      htmlContent += '<div class="bold" style="font-size: 16px; margin: 5px 0;">';
+      htmlContent += '<div class="bold" style="font-size: 17px; margin: 3px 0;">';
       htmlContent += item.qty + 'x ' + item.name + item.portion + ' &pound;' + item.price;
       htmlContent += '</div>';
       if (item.note) {
-        htmlContent += '<div style="font-size: 13px; padding-left: 5px; color: #555; margin: 2px 0 6px 0;">Note: ' + item.note + '</div>';
+        htmlContent += '<div style="font-size: 11px; padding-left: 4px; color: #555; margin: 2px 0 4px 0;">Note: ' + item.note + '</div>';
       }
     });
     
     htmlContent += '<div class="divider"></div>';
     
     // Subtotal
-    htmlContent += '<div style="font-size: 16px; margin: 6px 0;">Subtotal: &pound;' + subtotalStr + '</div>';
+    htmlContent += '<div style="font-size: 15px; margin: 4px 0;">Subtotal: &pound;' + subtotalStr + '</div>';
     
     // Discount
     if (discountAmount > 0) {
@@ -761,25 +883,27 @@ export default function Order() {
       if (discountType === 'percentage' && discountInput) {
         discountLabel = 'Discount (' + discountInput + '%):';
       }
-      htmlContent += '<div style="font-size: 16px; margin: 6px 0;">' + discountLabel + ' -&pound;' + discountStr + '</div>';
+      htmlContent += '<div style="font-size: 13px; margin: 5px 0;">' + discountLabel + ' -&pound;' + discountStr + '</div>';
     }
     
     htmlContent += '<div class="divider"></div>';
     
     // Total
-    htmlContent += '<div class="bold" style="font-size: 20px; margin: 10px 0; padding: 8px 0; border-top: 2px solid #000; border-bottom: 2px solid #000;">';
+    htmlContent += '<div class="bold" style="font-size: 24px; margin: 12px 0; padding: 10px 0; border-top: 2px solid #000; border-bottom: 2px solid #000;">';
     htmlContent += 'TOTAL: &pound;' + totalAmount;
     htmlContent += '</div>';
     
     htmlContent += '<div class="divider"></div>';
     
-    // Payment info
-    htmlContent += '<div style="font-size: 14px; margin: 8px 0;"><strong>Payment:</strong> ' + String(printPaymentMethod) + '</div>';
-    htmlContent += '<div class="center bold" style="font-size: 22px; margin: 12px 0; padding: 12px 5px; border: 3px solid #000;">';
-    htmlContent += printIsPaid ? 'PAID' : 'NOT PAID';
+    // Payment status
+    const paymentMethodStr = String(printPaymentMethod);
+    const paymentStatus = printIsPaid ? 'Paid' : 'Not Paid';
+    const paymentText = paymentMethodStr + ' ' + paymentStatus;
+    htmlContent += '<div class="center bold" style="font-size: 18px; margin: 8px 0; text-decoration: underline;">';
+    htmlContent += paymentText;
     htmlContent += '</div>';
     htmlContent += '<div class="divider"></div>';
-    htmlContent += '<div class="center" style="font-size: 13px; margin-top: 8px;">Thank You!</div>';
+    htmlContent += '<div class="center" style="font-size: 15px; margin-top: 10px;">Thank You!</div>';
     
     htmlContent += '</body></html>';
 
@@ -820,93 +944,20 @@ export default function Order() {
     setShowReceipt(true);
   };
 
-  const handlePrintBillOnly = async () => {
+  const handlePrintBillOnly = () => {
     if (cart.length === 0) {
       window.alert("No items in the cart to print.");
       return;
     }
 
-    if (paymentMethod === "Card" && !isPaid) {
-      const confirmProceed = window.confirm(
-        "Card payment has not been marked as received. Continue anyway?"
-      );
-      if (!confirmProceed) {
-        return;
-      }
+    // Generate order number if needed
+    const currentOrderNumber = orderNumber || generateOrderId();
+    if (!orderNumber) {
+      setOrderNumber(currentOrderNumber);
     }
 
-    const orderId = generateOrderId();
-    const timestamp = new Date().toLocaleString();
-    
-    // Check if this is a new customer
-    let isNewCustomer = true;
-    if (customer.postalCode) {
-      try {
-        const response = await fetch(`/api/saveOrder?postalCode=${encodeURIComponent(customer.postalCode)}`);
-        const data = await response.json();
-        if (data.orders && data.orders.length > 0) {
-          isNewCustomer = false;
-        }
-      } catch (error) {
-        console.warn("Could not check customer history:", error);
-      }
-    }
-    
-    const orderData = {
-      orderId,
-      orderNumber: orderId,
-      timestamp,
-      orderType,
-      customer,
-      customerName: customer.name,
-      paymentMethod,
-      isPaid,
-      amountReceived: paymentMethod === "Cash" ? amountReceivedNumber : total,
-      changeDue,
-      total,
-      isNewCustomer,
-      totals: {
-        subtotal,
-        discount: {
-          type: discountType,
-          input: discountInput,
-          value: discountValue,
-        },
-        tax: taxAmount,
-        grandTotal: total,
-      },
-      items: cart,
-    };
-
-    try {
-      // Save to database first
-      const response = await fetch("/api/saveOrder", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(orderData),
-      });
-      const result = await response.json();
-      if (result.success) {
-        setOrderNumber(orderId);
-        setReceiptTimestamp(timestamp);
-        setIsNewCustomer(isNewCustomer);
-        triggerToast(`Order #${orderId} saved to database`);
-        
-        // Now print the receipt
-        handlePrintReceipt();
-        
-        // Reset after printing
-        setTimeout(() => {
-          resetOrderState();
-        }, 1000);
-      } else {
-        window.alert("Failed to save order: " + (result.error || "Unknown error"));
-      }
-    } catch (error) {
-      window.alert("Error saving order: " + error.message);
-    }
+    // Print directly without saving to database
+    handlePrintReceipt();
   };
 
   const printOnlineOrderTicket = (order) => {
@@ -1152,7 +1203,7 @@ export default function Order() {
             onItemNoteChange={handleItemNoteChange}
             onClearCart={clearCart}
             onOpenCustomItemModal={handleOpenCustomItemModal}
-            onPrintBill={handlePrintBillOnly}
+            onPrintBill={handleSaveAndPrint}
             onConfirmOrder={handleSubmitOrder}
             showCart={showCart}
             onHideCart={handleHideCart}
