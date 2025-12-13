@@ -864,8 +864,8 @@ export default function Order() {
     
     // Items - simple inline format
     itemsList.forEach(item => {
-      htmlContent += '<div class="bold" style="font-size: 17px; margin: 3px 0;">';
-      htmlContent += item.qty + 'x ' + item.name + item.portion + ' &pound;' + item.price;
+      htmlContent += '<div style="font-size: 17px; margin: 3px 0;">';
+      htmlContent += '<span class="bold">' + item.qty + 'x ' + item.name + item.portion + '</span> &pound;' + item.price;
       htmlContent += '</div>';
       if (item.note) {
         htmlContent += '<div style="font-size: 11px; padding-left: 4px; color: #555; margin: 2px 0 4px 0;">Note: ' + item.note + '</div>';
@@ -889,7 +889,7 @@ export default function Order() {
     htmlContent += '<div class="divider"></div>';
     
     // Total
-    htmlContent += '<div class="bold" style="font-size: 24px; margin: 12px 0; padding: 10px 0; border-top: 2px solid #000; border-bottom: 2px solid #000;">';
+    htmlContent += '<div class="bold" style="font-size: 16px; margin: 12px 0; padding: 10px 0; border-top: 2px solid #000; border-bottom: 2px solid #000;">';
     htmlContent += 'TOTAL: &pound;' + totalAmount;
     htmlContent += '</div>';
     

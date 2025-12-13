@@ -51,7 +51,7 @@ export default function OrderHistory() {
         const lineTotal = qty * priceEach;
         const portion = item.portion ? ` (${item.portion})` : "";
         return `<div style="margin: 3px 0;">
-          <div style="font-size: 17px; font-weight: bold;">${qty}x ${item.name}${portion} £${lineTotal.toFixed(2)}</div>
+          <div style="font-size: 17px;"><span style="font-weight: bold;">${qty}x ${item.name}${portion}</span> £${lineTotal.toFixed(2)}</div>
         </div>`;
       })
       .join("");
