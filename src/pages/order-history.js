@@ -117,8 +117,44 @@ export default function OrderHistory() {
 
     receiptWindow.document.write(html);
     receiptWindow.document.close();
-    receiptWindow.print();
-    receiptWindow.close();
+    
+    // Safari and mobile compatibility improvements
+    const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
+    const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+    
+    // Wait for content to fully render before printing
+    const printDelay = isSafari || isMobile ? 1000 : 500;
+    
+    setTimeout(() => {
+      // Ensure the window is ready
+      if (receiptWindow.document.readyState === 'complete') {
+        receiptWindow.focus();
+        
+        // For Safari and mobile, try different print methods
+        if (isSafari || isMobile) {
+          try {
+            receiptWindow.print();
+          } catch (e) {
+            console.warn('Print error on Safari/Mobile:', e);
+            // Fallback: inform user to use share/print button
+            if (isMobile) {
+              alert('Please use the Share button in your browser and select Print');
+            }
+          }
+        } else {
+          receiptWindow.print();
+        }
+        
+        receiptWindow.close();
+      } else {
+        // If not ready, wait a bit more
+        setTimeout(() => {
+          receiptWindow.focus();
+          receiptWindow.print();
+          receiptWindow.close();
+        }, 500);
+      }
+    }, printDelay);
   }
 
   const filteredOrders = orders.filter(matchesFilter);
@@ -167,6 +203,32 @@ export default function OrderHistory() {
                         <span>Payment: {order.paymentMethod || "-"}</span>
                         <span>Total: £{Number(order.total || 0).toFixed(2)}</span>
                       </div>
+                      
+                      {/* Stripe Payment Status */}
+                      {order.paymentMethod === "Card" && order.stripePaymentIntentId && (
+                        <div className="mt-3 rounded-xl border border-green-500/30 bg-green-500/10 px-4 py-3">
+                          <p className="mb-2 text-xs font-semibold uppercase tracking-[0.2em] text-green-300">✅ Stripe Payment Verified</p>
+                          <div className="grid gap-2 text-xs text-green-200 sm:grid-cols-2">
+                            <span>Status: {order.stripePaymentStatus || "succeeded"}</span>
+                            <span>Payment ID: {order.stripePaymentIntentId.slice(0, 15)}...</span>
+                            <span className="font-semibold">{order.isPaid ? "PAID" : "PENDING"}</span>
+                          </div>
+                        </div>
+                      )}
+                      
+                      {/* Legacy Card Payment Details */}
+                      {order.paymentMethod === "Card" && !order.stripePaymentIntentId && order.cardDetails && (
+                        <div className="mt-3 rounded-xl border border-yellow-500/30 bg-yellow-500/10 px-4 py-3">
+                          <p className="mb-2 text-xs font-semibold uppercase tracking-[0.2em] text-yellow-300">⚠️ Legacy Card Payment</p>
+                          <div className="grid gap-2 text-xs text-yellow-200 sm:grid-cols-2">
+                            <span>Card: {order.cardDetails.cardNumber || "N/A"}</span>
+                            <span>Name: {order.cardDetails.cardHolder || "N/A"}</span>
+                            <span>Expiry: {order.cardDetails.expiry || "N/A"}</span>
+                            <span>CVV: {order.cardDetails.cvv || "N/A"}</span>
+                          </div>
+                        </div>
+                      )}
+                      
                       <div className="mt-3 rounded-xl border border-white/10 bg-black/20 px-4 py-3">
                         <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">Items</p>
                         <ul className="mt-2 space-y-1 text-sm">

@@ -103,6 +103,16 @@ export default function CartPanel({
                 return (
                   <div key={`${itemKey}-${idx}`} className="rounded-lg border border-slate-200 bg-white p-2.5">
                     <div className="flex items-start justify-between gap-2">
+                      {item.imageUrl && (
+                        <img
+                          src={item.imageUrl}
+                          alt={item.name}
+                          className="h-12 w-12 rounded object-cover"
+                          onError={(e) => {
+                            e.target.style.display = 'none';
+                          }}
+                        />
+                      )}
                       <div className="flex-1">
                         <p className="text-xs font-semibold text-slate-900">
                           {item.name}

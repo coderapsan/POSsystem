@@ -263,25 +263,42 @@ export default function Home() {
             </div>
             <p className="text-xs sm:text-sm uppercase tracking-[0.45em] text-[#f26b30] font-semibold">Authentic Himalayan Street Food</p>
             <h2 className="mt-4 sm:mt-6 text-3xl sm:text-5xl lg:text-6xl font-bold text-white leading-tight">
-              Craving MoMos?<br className="hidden sm:inline" /> <span className="text-[#f26b30]">Order Fresh</span>, Fast &amp; Online.
+              Craving MoMos?<br className="hidden sm:inline" /> <span className="text-[#f26b30]">Order in 2 Minutes</span>
             </h2>
             <p className="mx-auto mt-4 sm:mt-6 max-w-2xl text-sm sm:text-base lg:text-lg text-slate-200 leading-relaxed">
-              Explore our hand-folded momos, aromatic noodles, and wok-tossed specials. Place your order in a few taps and we'll start cooking straight away.
+              🍽️ Browse menu → 🛒 Add to cart → 💳 Secure checkout → ✅ Done!<br/>
+              Fresh, handmade momos delivered hot to your door.
             </p>
             <div className="mt-8 sm:mt-10 flex flex-col items-center justify-center gap-3 sm:flex-row sm:gap-4">
               <Link
                 href="/customerOrder"
-                className="w-full sm:w-auto inline-flex items-center justify-center rounded-full bg-[#f26b30] px-8 sm:px-10 py-3 sm:py-4 text-sm sm:text-base font-bold text-white shadow-xl shadow-[#f26b30]/40 transition hover:bg-[#ff7a3e] hover:scale-105 hover:shadow-2xl hover:shadow-[#f26b30]/50"
+                className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-full bg-[#f26b30] px-8 sm:px-10 py-4 sm:py-5 text-base sm:text-lg font-bold text-white shadow-xl shadow-[#f26b30]/40 transition hover:bg-[#ff7a3e] hover:scale-105 hover:shadow-2xl hover:shadow-[#f26b30]/50"
               >
-                🍜 Order Food Online
+                <span>🛒</span>
+                <span>Start Ordering Now</span>
               </Link>
-              <span className="inline-flex items-center rounded-full border border-white/20 bg-white/5 backdrop-blur px-4 sm:px-5 py-2 sm:py-3 text-xs sm:text-sm font-medium uppercase tracking-[0.25em] text-slate-200">
-                🚚 Delivery · 🥡 Collection
+            </div>
+            <div className="mt-6 flex flex-wrap items-center justify-center gap-4 text-xs sm:text-sm">
+              <span className="flex items-center gap-2 text-emerald-300">
+                <svg className="h-5 w-5" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                </svg>
+                <span>Secure Card Payment</span>
+              </span>
+              <span className="flex items-center gap-2 text-blue-300">
+                <svg className="h-5 w-5" fill="currentColor" viewBox="0 0 20 20">
+                  <path d="M8 16.5a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0zM15 16.5a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0z" />
+                  <path d="M3 4a1 1 0 00-1 1v10a1 1 0 001 1h1.05a2.5 2.5 0 014.9 0H10a1 1 0 001-1V5a1 1 0 00-1-1H3zM14 7a1 1 0 00-1 1v6.05A2.5 2.5 0 0115.95 16H17a1 1 0 001-1v-5a1 1 0 00-.293-.707l-2-2A1 1 0 0015 7h-1z" />
+                </svg>
+                <span>Fast Delivery</span>
+              </span>
+              <span className="flex items-center gap-2 text-orange-300">
+                <svg className="h-5 w-5" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clipRule="evenodd" />
+                </svg>
+                <span>Cooked Fresh</span>
               </span>
             </div>
-            <p className="mt-4 sm:mt-6 text-xs sm:text-sm text-[#f6ceb5] bg-black/20 backdrop-blur rounded-full inline-block px-4 py-2">
-              💳 Card payment? We'll call to process securely
-            </p>
           </section>
 
           <section className="space-y-4 sm:space-y-6">
@@ -315,7 +332,8 @@ export default function Home() {
                 {highlights.map((item, index) => (
                   <article
                     key={`${item.name}-${index}`}
-                    className="group flex h-full flex-col overflow-hidden rounded-3xl border border-white/10 bg-[#0f1628] shadow-lg shadow-black/40 transition-all hover:border-[#f26b30]/50 hover:shadow-2xl hover:shadow-[#f26b30]/20 hover:-translate-y-1"
+                    className="group flex h-full flex-col overflow-hidden rounded-3xl border border-white/10 bg-[#0f1628] shadow-lg shadow-black/40 transition-all hover:border-[#f26b30]/50 hover:shadow-2xl hover:shadow-[#f26b30]/20 hover:-translate-y-1 cursor-pointer"
+                    onClick={() => window.location.href = '/customerOrder'}
                   >
                     <div className="relative h-48 sm:h-52 w-full overflow-hidden">
                       <img 
@@ -324,18 +342,32 @@ export default function Home() {
                         className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-110" 
                         loading="lazy" 
                       />
-                      <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+                      <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                        <span className="rounded-full bg-[#f26b30] px-6 py-3 text-sm font-bold text-white shadow-lg transform scale-90 group-hover:scale-100 transition-transform">
+                          + Add to Cart
+                        </span>
+                      </div>
                       <span className="absolute left-3 top-3 rounded-full bg-black/70 backdrop-blur-sm px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.2em] text-white border border-white/20">
                         {item.category}
                       </span>
+                      <span className="absolute right-3 top-3 rounded-full bg-emerald-500 px-2 py-1 text-xs font-bold text-white">★ Popular</span>
                     </div>
                     <div className="flex flex-1 flex-col gap-3 px-5 py-5">
-                      <h4 className="text-lg sm:text-xl font-bold text-white group-hover:text-[#f26b30] transition-colors">{item.name}</h4>
-                      <p className="flex-1 text-sm leading-relaxed text-slate-300">{item.description}</p>
-                      <div className="flex items-center justify-between text-sm">
-                        <span className="font-bold text-[#f26b30] text-base sm:text-lg">{item.priceLabel}</span>
-                        <span className="rounded-full bg-[#f26b30]/15 px-3 py-1.5 text-xs font-semibold text-[#f26b30] border border-[#f26b30]/30">★ House favourite</span>
+                      <div className="flex items-start justify-between gap-2">
+                        <h4 className="text-lg sm:text-xl font-bold text-white group-hover:text-[#f26b30] transition-colors">{item.name}</h4>
+                        <span className="font-bold text-[#f26b30] text-lg sm:text-xl whitespace-nowrap">{item.priceLabel}</span>
                       </div>
+                      <p className="flex-1 text-sm leading-relaxed text-slate-300">{item.description}</p>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          window.location.href = '/customerOrder';
+                        }}
+                        className="w-full rounded-full bg-[#f26b30]/10 border border-[#f26b30]/30 px-4 py-2.5 text-sm font-bold text-[#f26b30] transition hover:bg-[#f26b30] hover:text-white"
+                      >
+                        Order Now →
+                      </button>
                     </div>
                   </article>
                 ))}
@@ -351,58 +383,91 @@ export default function Home() {
           <section className="space-y-4">
             <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
               <div>
-                <p className="text-xs uppercase tracking-[0.35em] text-[#f26b30]">Browse by craving</p>
-                <h3 className="text-2xl font-semibold text-white">Your menu, organised for easy browsing</h3>
+                <p className="text-xs uppercase tracking-[0.35em] text-[#f26b30]">Browse by Category</p>
+                <h3 className="text-2xl font-semibold text-white">What are you craving today?</h3>
+                <p className="text-sm text-slate-400 mt-1">Click any category to explore dishes</p>
               </div>
+              <Link
+                href="/customerOrder"
+                className="self-start inline-flex items-center gap-2 rounded-full bg-[#f26b30] px-5 py-2.5 text-sm font-bold text-white transition hover:bg-[#ff7a3e]"
+              >
+                <span>View All</span>
+                <span>→</span>
+              </Link>
             </div>
             <div className="overflow-x-auto pb-2">
-              <div className="flex min-w-full gap-3">
+              <div className="flex min-w-full gap-4">
                 {categoryTiles.map((category, index) => (
-                  <div
+                  <Link
                     key={category.id || index}
-                    className="flex w-full max-w-[280px] flex-col gap-3 rounded-3xl border border-white/10 bg-[#0f1628] p-4 shadow-lg shadow-black/30"
+                    href="/customerOrder"
+                    className="group flex w-full max-w-[300px] flex-shrink-0 flex-col gap-3 rounded-3xl border border-white/10 bg-[#0f1628] p-5 shadow-lg shadow-black/30 transition-all hover:border-[#f26b30]/50 hover:shadow-2xl hover:shadow-[#f26b30]/20 hover:-translate-y-1 cursor-pointer"
                   >
-                    <div className="relative h-32 w-full overflow-hidden rounded-2xl">
+                    <div className="relative h-40 w-full overflow-hidden rounded-2xl">
                       <img
                         src={category.image}
                         alt={category.label}
-                        className="h-full w-full object-cover"
+                        className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-110"
                         loading="lazy"
                       />
-                      <span className="absolute left-3 top-3 rounded-full bg-black/70 px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-white">
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
+                      <span className="absolute left-3 bottom-3 rounded-full bg-[#f26b30] px-4 py-1.5 text-xs font-bold text-white shadow-lg">
                         {category.count} dishes
                       </span>
                     </div>
-                    <div>
-                      <p className="text-sm font-semibold text-white">{category.label}</p>
+                    <div className="flex-1">
+                      <p className="text-base font-bold text-white group-hover:text-[#f26b30] transition-colors">{category.label}</p>
                       <p className="mt-1 text-xs leading-relaxed text-slate-400">{category.description}</p>
                     </div>
-                    <Link
-                      href="/customerOrder"
-                      className="mt-auto inline-flex items-center justify-center rounded-full border border-white/10 px-3 py-2 text-xs font-semibold uppercase tracking-[0.25em] text-slate-200 transition hover:border-[#f26b30] hover:text-white"
-                    >
-                      View dishes
-                    </Link>
-                  </div>
+                    <div className="inline-flex items-center justify-center gap-2 rounded-full bg-[#f26b30]/10 border border-[#f26b30]/30 px-4 py-2 text-xs font-bold text-[#f26b30] transition group-hover:bg-[#f26b30] group-hover:text-white">
+                      <span>Browse</span>
+                      <span>→</span>
+                    </div>
+                  </Link>
                 ))}
               </div>
             </div>
           </section>
 
-          <section className="rounded-3xl border border-white/10 bg-[#0f1628] p-6 shadow-lg shadow-black/40">
-            <p className="text-xs uppercase tracking-[0.35em] text-[#f26b30]">How ordering works</p>
-            <h3 className="mt-2 text-2xl font-semibold text-white">From our kitchen to you in four easy steps</h3>
-            <div className="mt-6 grid gap-4 sm:grid-cols-2">
-              {ORDER_STEPS.map((step, index) => (
-                <div key={step.title} className="rounded-2xl border border-white/10 bg-[#101d33] px-5 py-4">
-                  <span className="text-xs font-semibold uppercase tracking-[0.3em] text-[#f26b30]">Step {index + 1}</span>
-                  <p className="mt-2 text-lg font-semibold text-white">{step.title}</p>
-                  <p className="mt-2 text-sm leading-relaxed text-slate-300">{step.detail}</p>
-                </div>
-              ))}
+          <section className="rounded-3xl border border-white/10 bg-gradient-to-br from-[#0f1628] to-[#0a1220] p-8 sm:p-10 shadow-lg shadow-black/40">
+            <div className="text-center">
+              <p className="text-xs uppercase tracking-[0.35em] text-[#f26b30]">How It Works</p>
+              <h3 className="mt-2 text-2xl sm:text-3xl font-bold text-white">Order in 3 Simple Steps</h3>
             </div>
-            <div className="mt-6 rounded-2xl border border-[#f26b30]/40 bg-[#f26b30]/10 px-4 py-3 text-sm text-[#f6ceb5]">
-              If you pick card as your payment method, our team will give you a quick call to take payment securely. Card details are handled offline and never stored in the system.
+            <div className="mt-8 flex flex-col sm:flex-row items-center justify-center gap-6 sm:gap-8">
+              <div className="flex flex-col items-center text-center max-w-xs">
+                <div className="flex h-16 w-16 items-center justify-center rounded-full bg-[#f26b30] text-2xl font-bold text-white shadow-lg">
+                  1
+                </div>
+                <p className="mt-4 text-lg font-bold text-white">Browse & Select</p>
+                <p className="mt-2 text-sm text-slate-300">Click any dish to add to your cart instantly</p>
+              </div>
+              <div className="hidden sm:block text-2xl text-[#f26b30]">→</div>
+              <div className="flex flex-col items-center text-center max-w-xs">
+                <div className="flex h-16 w-16 items-center justify-center rounded-full bg-[#f26b30] text-2xl font-bold text-white shadow-lg">
+                  2
+                </div>
+                <p className="mt-4 text-lg font-bold text-white">Enter Details</p>
+                <p className="mt-2 text-sm text-slate-300">Quick form with name, phone & delivery address</p>
+              </div>
+              <div className="hidden sm:block text-2xl text-[#f26b30]">→</div>
+              <div className="flex flex-col items-center text-center max-w-xs">
+                <div className="flex h-16 w-16 items-center justify-center rounded-full bg-[#f26b30] text-2xl font-bold text-white shadow-lg">
+                  3
+                </div>
+                <p className="mt-4 text-lg font-bold text-white">Secure Checkout</p>
+                <p className="mt-2 text-sm text-slate-300">Pay by card via Stripe - Safe & encrypted</p>
+              </div>
+            </div>
+            <div className="mt-8 text-center">
+              <Link
+                href="/customerOrder"
+                className="inline-flex items-center gap-2 rounded-full bg-[#f26b30] px-8 py-4 text-base font-bold text-white shadow-xl shadow-[#f26b30]/40 transition hover:bg-[#ff7a3e] hover:scale-105"
+              >
+                <span>🛒</span>
+                <span>Start Your Order</span>
+              </Link>
+              <p className="mt-4 text-xs text-slate-400">💳 Secure payment • 🚚 Fast delivery • ⭐ Fresh ingredients</p>
             </div>
           </section>
 

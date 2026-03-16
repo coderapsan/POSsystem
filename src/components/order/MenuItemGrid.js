@@ -36,6 +36,17 @@ export default function MenuItemGrid({ items = [], highlightedId, onSelectItem, 
             }`}
             onClick={() => onSelectItem(item)}
           >
+            {/* Food Image */}
+            {item.imageUrl && (
+              <div className="relative h-32 w-full overflow-hidden rounded-lg bg-slate-100">
+                <img
+                  src={item.imageUrl}
+                  alt={item.name}
+                  className="h-full w-full object-cover transition group-hover:scale-105"
+                />
+              </div>
+            )}
+            
             <div className="flex items-start justify-between gap-3">
               <div className="space-y-1">
                 <p className="text-sm font-semibold text-slate-900">{item.name}</p>

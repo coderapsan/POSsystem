@@ -21,6 +21,7 @@ const initialNewItem = {
   allergens: "",
   isAvailable: true,
   imageUrl: "",
+  imageFile: null,
 };
 
 export default function Admin() {
@@ -38,6 +39,7 @@ export default function Admin() {
 
   const [newItem, setNewItem] = useState(initialNewItem);
   const [editingMenuItem, setEditingMenuItem] = useState(null);
+  const [uploadingImage, setUploadingImage] = useState(false);
 
   const [orderSearch, setOrderSearch] = useState("");
   const [orderStatusFilter, setOrderStatusFilter] = useState("all");
@@ -336,6 +338,36 @@ export default function Admin() {
       return;
     }
 
+    let finalImageUrl = formData.imageUrl.trim();
+
+    // Upload image file if selected
+    if (formData.imageFile) {
+      setUploadingImage(true);
+      try {
+        const uploadFormData = new FormData();
+        uploadFormData.append('image', formData.imageFile);
+
+        const uploadRes = await fetch('/api/upload-image', {
+          method: 'POST',
+          body: uploadFormData,
+        });
+
+        const uploadData = await uploadRes.json();
+        if (uploadData.success) {
+          finalImageUrl = uploadData.imageUrl;
+        } else {
+          notify(uploadData.error || 'Image upload failed', 'error');
+          setUploadingImage(false);
+          return;
+        }
+      } catch (error) {
+        notify('Image upload failed: ' + error.message, 'error');
+        setUploadingImage(false);
+        return;
+      }
+      setUploadingImage(false);
+    }
+
     const updates = {
       category: formData.category.trim(),
       name: formData.name.trim(),
@@ -346,7 +378,7 @@ export default function Admin() {
         .map((tag) => tag.trim())
         .filter(Boolean),
       isAvailable: Boolean(formData.isAvailable),
-      imageUrl: formData.imageUrl.trim(),
+      imageUrl: finalImageUrl,
       price: {
         large: Number(formData.priceLarge) || 0,
         small: Number(formData.priceSmall) || 0,
@@ -418,6 +450,36 @@ export default function Admin() {
       return;
     }
 
+    let finalImageUrl = newItem.imageUrl.trim();
+
+    // Upload image file if selected
+    if (newItem.imageFile) {
+      setUploadingImage(true);
+      try {
+        const formData = new FormData();
+        formData.append('image', newItem.imageFile);
+
+        const uploadRes = await fetch('/api/upload-image', {
+          method: 'POST',
+          body: formData,
+        });
+
+        const uploadData = await uploadRes.json();
+        if (uploadData.success) {
+          finalImageUrl = uploadData.imageUrl;
+        } else {
+          notify(uploadData.error || 'Image upload failed', 'error');
+          setUploadingImage(false);
+          return;
+        }
+      } catch (error) {
+        notify('Image upload failed: ' + error.message, 'error');
+        setUploadingImage(false);
+        return;
+      }
+      setUploadingImage(false);
+    }
+
     const itemPayload = {
       name: newItem.name.trim(),
       description: newItem.description.trim(),
@@ -427,7 +489,7 @@ export default function Admin() {
         .map((tag) => tag.trim())
         .filter(Boolean),
       isAvailable: Boolean(newItem.isAvailable),
-      imageUrl: newItem.imageUrl.trim(),
+      imageUrl: finalImageUrl,
       price: {
         large: Number(newItem.priceLarge) || 0,
         small: Number(newItem.priceSmall) || 0,
@@ -1247,14 +1309,38 @@ export default function Admin() {
               className="border p-2 rounded md:col-span-2"
               rows={2}
             />
-            <input
-              type="text"
-              placeholder="Image URL (e.g., https://example.com/image.jpg)"
-              value={newItem.imageUrl}
-              onChange={(e) => setNewItem((prev) => ({ ...prev, imageUrl: e.target.value }))}
-              className="border p-2 rounded md:col-span-2"
-            />
-            {newItem.imageUrl && (
+            <div className="md:col-span-2 space-y-2">
+              <label className="block text-sm font-medium text-gray-700">
+                Item Image
+              </label>
+              <div className="flex gap-2 items-center">
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) {
+                      setNewItem((prev) => ({ 
+                        ...prev, 
+                        imageFile: file,
+                        imageUrl: URL.createObjectURL(file)
+                      }));
+                    }
+                  }}
+                  className="border p-2 rounded flex-1"
+                />
+                <span className="text-sm text-gray-500">or</span>
+                <input
+                  type="text"
+                  placeholder="Image URL"
+                  value={newItem.imageFile ? '' : newItem.imageUrl}
+                  onChange={(e) => setNewItem((prev) => ({ ...prev, imageUrl: e.target.value, imageFile: null }))}
+                  className="border p-2 rounded flex-1"
+                  disabled={!!newItem.imageFile}
+                />
+              </div>
+            </div>
+            {(newItem.imageUrl || newItem.imageFile) && (
               <div className="md:col-span-2">
                 <p className="text-xs text-gray-600 mb-2">Image preview:</p>
                 <img
@@ -1276,8 +1362,8 @@ export default function Admin() {
               Available for ordering
             </label>
           </div>
-          <button className="bg-orange-600 hover:bg-orange-700 text-white px-4 py-2 rounded" onClick={handleAddMenuItem}>
-            Add to menu
+          <button className="bg-orange-600 hover:bg-orange-700 text-white px-4 py-2 rounded" onClick={handleAddMenuItem} disabled={uploadingImage}>
+            {uploadingImage ? 'Uploading Image...' : 'Add to menu'}
           </button>
           <datalist id="category-options">
             {categories.map((cat) => (
@@ -1350,14 +1436,38 @@ export default function Admin() {
                               className="border p-2 rounded md:col-span-2"
                               rows={2}
                             />
-                            <input
-                              type="text"
-                              placeholder="Image URL"
-                              value={editingMenuItem.formData.imageUrl}
-                              onChange={(e) => handleEditMenuChange("imageUrl", e.target.value)}
-                              className="border p-2 rounded md:col-span-2"
-                            />
-                            {editingMenuItem.formData.imageUrl && (
+                            <div className="md:col-span-2 space-y-2">
+                              <label className="block text-sm font-medium text-gray-700">
+                                Item Image
+                              </label>
+                              <div className="flex gap-2 items-center">
+                                <input
+                                  type="file"
+                                  accept="image/*"
+                                  onChange={(e) => {
+                                    const file = e.target.files?.[0];
+                                    if (file) {
+                                      handleEditMenuChange("imageFile", file);
+                                      handleEditMenuChange("imageUrl", URL.createObjectURL(file));
+                                    }
+                                  }}
+                                  className="border p-2 rounded flex-1"
+                                />
+                                <span className="text-sm text-gray-500">or</span>
+                                <input
+                                  type="text"
+                                  placeholder="Image URL"
+                                  value={editingMenuItem.formData.imageFile ? '' : editingMenuItem.formData.imageUrl}
+                                  onChange={(e) => {
+                                    handleEditMenuChange("imageUrl", e.target.value);
+                                    handleEditMenuChange("imageFile", null);
+                                  }}
+                                  className="border p-2 rounded flex-1"
+                                  disabled={!!editingMenuItem.formData.imageFile}
+                                />
+                              </div>
+                            </div>
+                            {(editingMenuItem.formData.imageUrl || editingMenuItem.formData.imageFile) && (
                               <div className="md:col-span-2">
                                 <p className="text-xs text-gray-600 mb-2">Image preview:</p>
                                 <img
@@ -1379,8 +1489,8 @@ export default function Admin() {
                               Available
                             </label>
                             <div className="flex gap-2 md:col-span-2">
-                              <button className="bg-green-600 text-white px-3 py-1 rounded" onClick={handleSaveMenuItem}>
-                                Save
+                              <button className="bg-green-600 text-white px-3 py-1 rounded" onClick={handleSaveMenuItem} disabled={uploadingImage}>
+                                {uploadingImage ? 'Uploading...' : 'Save'}
                               </button>
                               <button className="bg-gray-200 px-3 py-1 rounded" onClick={() => setEditingMenuItem(null)}>
                                 Cancel

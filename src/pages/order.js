@@ -913,20 +913,57 @@ export default function Order() {
     receiptWindow.document.write(htmlContent);
     receiptWindow.document.close();
     
+    // Safari and mobile compatibility improvements
+    const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
+    const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+    
     // Wait for content to fully render before printing
+    const printDelay = isSafari || isMobile ? 1000 : 500;
+    
     setTimeout(() => {
-      receiptWindow.focus();
-      receiptWindow.print();
-      
-      // Only reset state if not printing from saved receipt data
-      if (!receiptData) {
+      // Ensure the window is ready
+      if (receiptWindow.document.readyState === 'complete') {
+        receiptWindow.focus();
+        
+        // For Safari and mobile, try different print methods
+        if (isSafari || isMobile) {
+          // Safari iOS fix - needs user interaction
+          try {
+            receiptWindow.print();
+          } catch (e) {
+            console.warn('Print error on Safari/Mobile:', e);
+            // Fallback: inform user to use share/print button
+            if (isMobile) {
+              alert('Please use the Share button in your browser and select Print');
+            }
+          }
+        } else {
+          receiptWindow.print();
+        }
+        
+        // Only reset state if not printing from saved receipt data
+        if (!receiptData) {
+          setTimeout(() => {
+            resetOrderState();
+            setShowReceipt(false);
+            triggerToast("Receipt sent to printer");
+          }, 1000);
+        }
+      } else {
+        // If not ready, wait a bit more
         setTimeout(() => {
-          resetOrderState();
-          setShowReceipt(false);
-          triggerToast("Receipt sent to printer");
-        }, 1000);
+          receiptWindow.focus();
+          receiptWindow.print();
+          if (!receiptData) {
+            setTimeout(() => {
+              resetOrderState();
+              setShowReceipt(false);
+              triggerToast("Receipt sent to printer");
+            }, 1000);
+          }
+        }, 500);
       }
-    }, 500);
+    }, printDelay);
   };
 
   const handlePreviewReceipt = () => {
@@ -1001,6 +1038,31 @@ export default function Order() {
     } catch (error) {
       console.error("Accept order failed", error);
       alert(`Failed to accept order: ${error.message}`);
+    }
+  };
+
+  const rejectOnlineOrder = async (orderId) => {
+    try {
+      const response = await fetch(`/api/saveOrder/reject`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ orderId }),
+      });
+      const result = await response.json();
+      if (!result.success) {
+        throw new Error(result.error || "Unable to reject order");
+      }
+
+      setIncomingOnlineOrders((prev) => {
+        const remaining = prev.filter((o) => o.orderId !== orderId);
+        setShowOnlineOrderModal(remaining.length > 0);
+        return remaining;
+      });
+
+      triggerToast(`Online order #${orderId} rejected and moved to history`);
+    } catch (error) {
+      console.error("Reject order failed", error);
+      alert(`Failed to reject order: ${error.message}`);
     }
   };
 
@@ -1290,6 +1352,7 @@ export default function Order() {
           actionButtonClass={actionButtonClass}
           subtleButtonClass={subtleButtonClass}
           onAccept={acceptOnlineOrder}
+          onReject={rejectOnlineOrder}
           onDismiss={() => setShowOnlineOrderModal(false)}
         />
 

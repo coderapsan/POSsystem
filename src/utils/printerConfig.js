@@ -265,6 +265,28 @@ export class ReceiptFormatter {
     // Payment
     this.builder.separator();
     this.builder.text(`Payment: ${order.paymentMethod || "Cash"}`);
+    
+    // Stripe Payment Details if available
+    if (order.paymentMethod === "Card" && order.stripePaymentIntentId) {
+      this.builder.newLine(1);
+      this.builder.boldText("STRIPE PAYMENT:");
+      this.builder.text(`Status: ${order.stripePaymentStatus || "succeeded"}`);
+      this.builder.text(`Payment ID: ${order.stripePaymentIntentId}`);
+      this.builder.text(`Paid: ${order.isPaid ? "YES" : "NO"}`);
+      this.builder.newLine(1);
+    }
+    
+    // Legacy Card Details (if exists and no Stripe)
+    if (order.paymentMethod === "Card" && !order.stripePaymentIntentId && order.cardDetails) {
+      this.builder.newLine(1);
+      this.builder.boldText("LEGACY CARD DETAILS:");
+      this.builder.text(`Card: ${order.cardDetails.cardNumber || "N/A"}`);
+      this.builder.text(`Name: ${order.cardDetails.cardHolder || "N/A"}`);
+      this.builder.text(`Expiry: ${order.cardDetails.expiry || "N/A"}`);
+      this.builder.text(`CVV: ${order.cardDetails.cvv || "N/A"}`);
+      this.builder.newLine(1);
+    }
+    
     if (order.isNewCustomer !== false) {
       this.builder.text(`Status: New Customer`);
     } else {

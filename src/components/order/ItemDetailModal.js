@@ -14,6 +14,18 @@ export default function ItemDetailModal({ item, subtleButtonClass, actionButtonC
         className="w-full max-w-md rounded-[28px] border border-slate-200 bg-white p-6 text-slate-900 shadow-2xl shadow-slate-300/40"
         onClick={(event) => event.stopPropagation()}
       >
+        {item.imageUrl && (
+          <div className="mb-4 -mt-2 -mx-2">
+            <img
+              src={item.imageUrl}
+              alt={item.name}
+              className="w-full h-48 object-cover rounded-2xl"
+              onError={(e) => {
+                e.target.style.display = 'none';
+              }}
+            />
+          </div>
+        )}
         <h3 className="text-lg font-semibold text-slate-900">{item.name}</h3>
         <p className="mt-2 text-sm leading-relaxed text-slate-600">
           {item.description?.trim() || item.ingredients?.join(", ") || "Ask the kitchen for the latest prep."}

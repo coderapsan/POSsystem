@@ -1,4 +1,12 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { loadStripe } from "@stripe/stripe-js";
+import { Elements } from "@stripe/react-stripe-js";
+import StripeCardForm from "../components/order/StripeCardForm";
+
+// Initialize Stripe only if publishable key is available
+const stripePromise = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY 
+  ? loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY)
+  : null;
 
 const MENU_CACHE_KEY = "momos-menu-cache";
 const MENU_CACHE_TTL = 1000 * 60 * 5; // 5 minutes
@@ -13,11 +21,14 @@ export default function CustomerOrder() {
   const [selectedItem, setSelectedItem] = useState(null);
 
   const [cart, setCart] = useState([]);
-  const [paymentMethod, setPaymentMethod] = useState("Cash");
+  const [paymentMethod, setPaymentMethod] = useState("Card");
+  const [stripePayment, setStripePayment] = useState(null);
+  const [showStripeForm, setShowStripeForm] = useState(false);
   const [fulfilmentType, setFulfilmentType] = useState("Delivery");
   const [customer, setCustomer] = useState({
     name: "",
     phone: "",
+    email: "",
     address: "",
     postalCode: "",
     notes: "",
@@ -317,20 +328,65 @@ export default function CustomerOrder() {
   };
 
   const handleSubmitOrder = async () => {
+    // Validation with helpful messages
     if (cart.length === 0) {
-      alert("Your cart is empty");
+      triggerToast("❌ Add items to your cart first");
       return;
     }
-    if (!customer.name || !customer.phone) {
-      alert("Please provide your name and phone number.");
+    
+    if (!customer.name?.trim()) {
+      triggerToast("📝 Please enter your name");
+      document.querySelector('input[placeholder*="Full name"]')?.focus();
+      return;
+    }
+    
+    if (!customer.phone?.trim()) {
+      triggerToast("📞 Please enter your mobile number");
+      document.querySelector('input[placeholder*="Mobile"]')?.focus();
+      return;
+    }
+    
+    if (!customer.email?.trim()) {
+      triggerToast("📧 Please enter your email address");
+      document.querySelector('input[placeholder*="Email"]')?.focus();
+      return;
+    }
+    
+    // Email validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(customer.email)) {
+      triggerToast("❌ Please enter a valid email address");
+      document.querySelector('input[type="email"]')?.focus();
+      return;
+    }
+    
+    // For delivery, require address
+    if (fulfilmentType === "Delivery" && !customer.address?.trim()) {
+      triggerToast("🏠 Please enter your delivery address");
+      document.querySelector('input[placeholder*="Address"]')?.focus();
+      return;
+    }
+    
+    // For Stripe card payments, show the payment form
+    if (paymentMethod === "Card" && !stripePayment) {
+      triggerToast("💳 Redirecting to secure payment...");
+      setShowStripeForm(true);
       return;
     }
 
+    // Submit order with payment data
+    await submitOrderToServer(stripePayment);
+  };
+
+  const submitOrderToServer = async (paymentData) => {
     const orderPayload = {
       orderId: Math.floor(10000 + Math.random() * 90000).toString(),
       timestamp: new Date().toISOString(),
       customer,
       paymentMethod,
+      stripePaymentIntentId: paymentData?.paymentIntentId || null,
+      stripePaymentStatus: paymentData ? "succeeded" : null,
+      isPaid: paymentMethod === "Card" && paymentData ? true : false,
       items: cart,
       total: subtotal,
       source: "customer",
@@ -351,6 +407,8 @@ export default function CustomerOrder() {
       setOrderPlaced(true);
       setOrderId(orderPayload.orderId);
       setCart([]);
+      setStripePayment(null);
+      setShowStripeForm(false);
       triggerToast("Thank you! Your order has been submitted.");
     } catch (error) {
       alert(`Failed to place order: ${error.message}`);
@@ -368,10 +426,10 @@ export default function CustomerOrder() {
         <header className="rounded-3xl border border-white/10 bg-white/5 px-6 py-8 shadow-lg shadow-black/30 backdrop-blur">
           <p className="text-xs uppercase tracking-[0.5em] text-[#f26b30]">Online Ordering</p>
           <h1 className="mt-3 text-3xl font-semibold text-white sm:text-4xl">
-            The MoMos – Quick Order
+            The MoMos – Order Online
           </h1>
           <p className="mt-2 max-w-2xl text-sm text-slate-400">
-            Browse the categories, tap the dishes you love, and your ticket drops straight into the POS for our team to action.
+            🍽️ Browse menu → 🛒 Add to cart → 💳 Secure checkout → ✅ Order confirmed
           </p>
           <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center">
             <div className="relative flex-1">
@@ -435,27 +493,40 @@ export default function CustomerOrder() {
             <div className="flex flex-col gap-6">
               <div className="rounded-3xl border border-white/10 bg-white/5 p-6 shadow-lg shadow-black/30 backdrop-blur">
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                  <h2 className="text-lg font-semibold text-white">Your details</h2>
+                  <div>
+                    <h2 className="text-lg font-semibold text-white">📝 Step 1: Your Details</h2>
+                    <p className="text-xs text-slate-400 mt-1">Fill in your information for delivery</p>
+                  </div>
                   <span className="text-xs uppercase tracking-[0.35em] text-slate-500">{fulfilmentType}</span>
                 </div>
                 <div className="mt-4 grid gap-3 sm:grid-cols-2">
                   <input
-                    placeholder="Full name"
+                    placeholder="Full name *"
                     value={customer.name}
                     onChange={(event) => setCustomer({ ...customer, name: event.target.value })}
                     className="w-full rounded-lg border border-white/10 bg-[#10172d] px-3 py-2 text-sm text-slate-100 placeholder-slate-500 focus:border-[#f26b30] focus:outline-none"
+                    required
                   />
                   <input
-                    placeholder="Mobile number"
+                    placeholder="Mobile number *"
                     value={customer.phone}
                     onChange={(event) => setCustomer({ ...customer, phone: event.target.value })}
                     className="w-full rounded-lg border border-white/10 bg-[#10172d] px-3 py-2 text-sm text-slate-100 placeholder-slate-500 focus:border-[#f26b30] focus:outline-none"
+                    required
+                  />
+                  <input
+                    placeholder="Email address *"
+                    type="email"
+                    value={customer.email}
+                    onChange={(event) => setCustomer({ ...customer, email: event.target.value })}
+                    className="w-full rounded-lg border border-white/10 bg-[#10172d] px-3 py-2 text-sm text-slate-100 placeholder-slate-500 focus:border-[#f26b30] focus:outline-none"
+                    required
                   />
                   <input
                     placeholder="Address line"
                     value={customer.address}
                     onChange={(event) => setCustomer({ ...customer, address: event.target.value })}
-                    className="w-full rounded-lg border border-white/10 bg-[#10172d] px-3 py-2 text-sm text-slate-100 placeholder-slate-500 focus:border-[#f26b30] focus:outline-none"
+                    className="w-full rounded-lg border border-white/10 bg-[#10172d] px-3 py-2 text-sm text-slate-100 placeholder-slate-500 focus:border-[#f26b30] focus:outline-none sm:col-span-2"
                   />
                   <input
                     placeholder="Postal code"
@@ -476,13 +547,19 @@ export default function CustomerOrder() {
                     onChange={(event) => setPaymentMethod(event.target.value)}
                     className="w-full rounded-lg border border-white/10 bg-[#10172d] px-3 py-2 text-sm text-slate-100 focus:border-[#f26b30] focus:outline-none"
                   >
-                    <option>Cash</option>
                     <option>Card</option>
+                    <option>Cash</option>
                     <option>Pay on collection</option>
                   </select>
-                  {paymentMethod === "Card" && (
-                    <div className="sm:col-span-2 rounded-xl border border-[#f26b30]/30 bg-[#f26b30]/10 px-4 py-3 text-xs text-[#f6ceb5]">
-                      We will call you back shortly to collect your card payment details securely. Please keep your phone nearby.
+                  {paymentMethod === "Card" && !showStripeForm && (
+                    <div className="sm:col-span-2 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-3 text-xs text-emerald-200">
+                      <p className="font-semibold mb-1 flex items-center gap-2">
+                        <span>🔒</span>
+                        <span>Secure Card Payment via Stripe</span>
+                      </p>
+                      <p className="text-emerald-300/80">
+                        Your card details are processed securely by Stripe. We never see or store your card information.
+                      </p>
                     </div>
                   )}
                   <textarea
@@ -498,8 +575,8 @@ export default function CustomerOrder() {
               <div className="rounded-3xl border border-white/10 bg-white/5 p-6 shadow-lg shadow-black/30 backdrop-blur">
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                   <div>
-                    <h2 className="text-lg font-semibold text-white">Browse the menu</h2>
-                    <p className="text-xs text-slate-400">Tap a category to focus. Items open in a popup so you stay on track.</p>
+                    <h2 className="text-lg font-semibold text-white">🍽️ Step 2: Browse Menu</h2>
+                    <p className="text-xs text-slate-400">Click any category below to see available dishes</p>
                   </div>
                   <button
                     className="inline-flex items-center justify-center rounded-full border border-white/10 px-4 py-2 text-xs font-semibold uppercase tracking-[0.35em] text-slate-300 transition hover:border-[#f26b30] hover:text-white"
@@ -551,17 +628,19 @@ export default function CustomerOrder() {
             </div>
 
             <aside className="rounded-3xl border border-white/10 bg-[#101828] p-6 shadow-xl shadow-black/40">
-              <div className="flex items-center justify-between">
-                <h2 className="text-lg font-semibold text-white">Your cart</h2>
-                <span className="rounded-full border border-white/10 px-3 py-1 text-xs text-slate-400">
-                  {cart.length} item{cart.length === 1 ? "" : "s"}
-                </span>
+              <div className="mb-4">
+                <h2 className="text-lg font-semibold text-white">🛒 Step 3: Your Order</h2>
+                <p className="text-xs text-slate-400 mt-1">
+                  {cart.length === 0 ? "Add items from the menu" : "Review and place your order"}
+                </p>
               </div>
               <div className="mt-4 space-y-3">
                 {cart.length === 0 ? (
-                  <p className="rounded-xl border border-dashed border-white/10 bg-black/10 px-4 py-6 text-center text-sm text-slate-500">
-                    Cart is empty. Tap a dish to add it here.
-                  </p>
+                  <div className="rounded-xl border border-dashed border-white/10 bg-black/10 px-4 py-8 text-center">
+                    <p className="text-4xl mb-2">🍽️</p>
+                    <p className="text-sm text-slate-400">Your cart is empty</p>
+                    <p className="text-xs text-slate-500 mt-1">Browse the menu above to get started</p>
+                  </div>
                 ) : (
                   cart.map((item, index) => (
                     <div
@@ -601,26 +680,42 @@ export default function CustomerOrder() {
                   <span>Subtotal</span>
                   <span>£{subtotal.toFixed(2)}</span>
                 </div>
-                <div className="flex items-center justify-between text-base font-semibold text-white">
-                  <span>Total due</span>
+                <div className="flex items-center justify-between text-lg font-bold text-white">
+                  <span>Total</span>
                   <span>£{subtotal.toFixed(2)}</span>
                 </div>
               </div>
               <button
-                className="mt-6 w-full rounded-full bg-[#f26b30] px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-[#f26b30]/30 transition hover:bg-[#ff7a3e]"
+                className={`mt-6 w-full rounded-full px-6 py-4 text-sm font-bold text-white shadow-lg transition ${
+                  cart.length === 0
+                    ? "bg-slate-600 cursor-not-allowed"
+                    : "bg-[#f26b30] shadow-[#f26b30]/30 hover:bg-[#ff7a3e] hover:scale-[1.02]"
+                }`}
                 onClick={handleSubmitOrder}
+                disabled={cart.length === 0}
               >
-                Submit order
+                {paymentMethod === "Card" && !showStripeForm
+                  ? "🔒 Proceed to Secure Payment"
+                  : cart.length === 0
+                  ? "Add items to continue"
+                  : "Place Order"}
               </button>
-              <p className="mt-2 text-center text-[11px] text-slate-400">
-                Card order? We will ring you to take payment. Card details stay offline for your security.
+              {paymentMethod === "Card" && cart.length > 0 && (
+                <p className="mt-3 text-center text-[11px] text-emerald-300/80">
+                  ✅ Secure checkout powered by Stripe
+                </p>
+              )}
+              <p className="mt-2 text-center text-[11px] text-slate-500">
+                {paymentMethod === "Cash" && "Pay when your order arrives"}
+                {paymentMethod === "Pay on collection" && "Pay when you collect"}
+                {paymentMethod === "Card" && "Card charged after confirmation"}
               </p>
               {cart.length > 0 && (
                 <button
-                  className="mt-3 w-full rounded-full border border-white/10 px-6 py-3 text-sm font-medium text-slate-200 transition hover:border-[#f26b30] hover:text-white"
+                  className="mt-3 w-full rounded-full border border-white/10 px-6 py-2 text-xs font-medium text-slate-400 transition hover:border-red-500/50 hover:text-red-400 hover:bg-red-500/5"
                   onClick={() => setCart([])}
                 >
-                  Clear cart
+                  🗑️ Clear cart
                 </button>
               )}
             </aside>
@@ -810,6 +905,76 @@ export default function CustomerOrder() {
       {toastMessage && (
         <div className="pointer-events-none fixed bottom-8 left-1/2 z-50 -translate-x-1/2 rounded-full border border-white/10 bg-[#111b30]/95 px-6 py-3 text-sm font-medium text-slate-100 shadow-xl shadow-black/40">
           ✅ {toastMessage}
+        </div>
+      )}
+
+      {/* Stripe Payment Modal */}
+      {showStripeForm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/80 backdrop-blur-sm p-4">
+          <div className="w-full max-w-md rounded-3xl border border-emerald-500/20 bg-[#0b1120] p-6 sm:p-8 text-slate-100 shadow-2xl">
+            <div className="mb-6 flex items-start justify-between">
+              <div>
+                <h3 className="text-2xl font-bold text-white flex items-center gap-2">
+                  <span>🔒</span>
+                  <span>Secure Payment</span>
+                </h3>
+                <p className="text-xs text-slate-400 mt-1">Powered by Stripe • 256-bit encryption</p>
+              </div>
+              <button
+                onClick={() => setShowStripeForm(false)}
+                className="text-slate-400 hover:text-white transition"
+                title="Go back"
+              >
+                <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            
+            <div className="mb-6 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-4">
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-emerald-200">Order Total</span>
+                <span className="text-2xl font-bold text-white">£{subtotal.toFixed(2)}</span>
+              </div>
+              <p className="text-xs text-emerald-300/70 mt-2">
+                Your card will be charged after you confirm payment below
+              </p>
+            </div>
+            
+            {!stripePromise ? (
+              <div className="rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-4 text-sm text-red-200">
+                <p className="mb-2 font-semibold">⚠️ Payment System Unavailable</p>
+                <p className="text-xs text-red-300/80">
+                  Stripe payment is not configured. Please contact support or try another payment method.
+                </p>
+                <button
+                  onClick={() => setShowStripeForm(false)}
+                  className="mt-3 w-full rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-700"
+                >
+                  Go Back
+                </button>
+              </div>
+            ) : (
+              <Elements stripe={stripePromise}>
+                <StripeCardForm
+                  amount={subtotal}
+                  orderId={Math.floor(10000 + Math.random() * 90000).toString()}
+                  customerName={customer.name}
+                  customerEmail={customer.email}
+                  onPaymentSuccess={(paymentData) => {
+                    triggerToast("✅ Payment successful! Creating your order...");
+                    setShowStripeForm(false);
+                    // Submit order immediately with payment data
+                    submitOrderToServer(paymentData);
+                  }}
+                  onPaymentError={(error) => {
+                    console.error("Payment error:", error);
+                    triggerToast("❌ Payment failed: " + (error.message || "Please try again"));
+                  }}
+                />
+              </Elements>
+            )}
+          </div>
         </div>
       )}
     </div>

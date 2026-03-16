@@ -120,10 +120,28 @@ export default async function handler(req, res) {
           }
         }
         const menu = {};
+        
+        // Dummy images for variety
+        const dummyImages = [
+          "/assets/images/usedImages/1.png",
+          "/assets/images/usedImages/2.png",
+          "/assets/images/usedImages/4.png",
+          "/assets/images/usedImages/33.png",
+          "/assets/images/usedImages/f1.png",
+          "/assets/images/usedImages/f2.png",
+          "/assets/images/usedImages/f3.png",
+          "/assets/images/usedImages/f4.png",
+          "/assets/images/usedImages/f5.png",
+          "/assets/images/usedImages/f6.png",
+        ];
 
-        items.forEach((item) => {
+        items.forEach((item, index) => {
           const category = item.category || "Uncategorized";
           if (!menu[category]) menu[category] = [];
+          
+          // Assign dummy image if not present
+          const imageUrl = item.imageUrl || dummyImages[index % dummyImages.length];
+          
           menu[category].push({
             id: item._id?.toString(),
             name: item.name,
@@ -133,7 +151,7 @@ export default async function handler(req, res) {
             spicyLevel: item.spicyLevel,
             allergens: normalizeAllergens(item.allergens),
             isAvailable: item.isAvailable !== false,
-            imageUrl: item.imageUrl || "",
+            imageUrl: imageUrl,
           });
         });
 

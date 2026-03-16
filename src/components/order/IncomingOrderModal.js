@@ -6,6 +6,7 @@ export default function IncomingOrderModal({
   actionButtonClass,
   subtleButtonClass,
   onAccept,
+  onReject,
   onDismiss,
 }) {
   const audioRef = useRef(null);
@@ -106,6 +107,18 @@ export default function IncomingOrderModal({
     onAccept(orderId);
   };
 
+  const handleReject = (orderId) => {
+    // Stop ringing
+    if (audioRef.current) {
+      audioRef.current.isPlaying = false;
+      if (audioRef.current.intervalId) {
+        clearInterval(audioRef.current.intervalId);
+      }
+      audioRef.current = null;
+    }
+    onReject(orderId);
+  };
+
   const handleDismiss = () => {
     // Stop ringing
     if (audioRef.current) {
@@ -134,6 +147,33 @@ export default function IncomingOrderModal({
         <div className="mt-3 space-y-2 text-sm text-slate-600">
           <p>Customer: {currentOrder.customer?.name || "Walk-in"}</p>
           <p>Order ID: {currentOrder.orderId}</p>
+          <p>Payment: {currentOrder.paymentMethod || "Cash"}</p>
+          
+          {/* Stripe Payment Details */}
+          {currentOrder.paymentMethod === "Card" && currentOrder.stripePaymentIntentId && (
+            <div className="rounded-xl border border-green-200 bg-green-50 px-4 py-3 text-xs">
+              <p className="mb-2 font-semibold text-green-900">✅ Stripe Payment Verified</p>
+              <div className="space-y-1 text-green-800">
+                <p>Status: {currentOrder.stripePaymentStatus || "succeeded"}</p>
+                <p>Payment ID: {currentOrder.stripePaymentIntentId.slice(0, 20)}...</p>
+                <p className="font-semibold">{currentOrder.isPaid ? "PAID" : "PENDING"}</p>
+              </div>
+            </div>
+          )}
+          
+          {/* Legacy Card Details (if exists) */}
+          {currentOrder.paymentMethod === "Card" && !currentOrder.stripePaymentIntentId && currentOrder.cardDetails && (
+            <div className="rounded-xl border border-yellow-200 bg-yellow-50 px-4 py-3 text-xs">
+              <p className="mb-2 font-semibold text-yellow-900">⚠️ Legacy Card Payment</p>
+              <div className="space-y-1 text-yellow-800">
+                <p>Card: {currentOrder.cardDetails.cardNumber || "N/A"}</p>
+                <p>Name: {currentOrder.cardDetails.cardHolder || "N/A"}</p>
+                <p>Expiry: {currentOrder.cardDetails.expiry || "N/A"}</p>
+                <p>CVV: {currentOrder.cardDetails.cvv || "N/A"}</p>
+              </div>
+            </div>
+          )}
+          
           <ul className="mt-2 space-y-1 rounded-xl border border-slate-200 bg-[#f9fafb] px-4 py-3 text-xs text-slate-700">
             {items.map((item, idx) => (
               <li key={idx} className="flex justify-between">
@@ -146,6 +186,12 @@ export default function IncomingOrderModal({
         <div className="mt-6 flex flex-wrap justify-center gap-3">
           <button className={actionButtonClass} onClick={() => handleAccept(currentOrder.orderId)}>
             Accept & Print
+          </button>
+          <button 
+            className="inline-flex items-center justify-center rounded-full border-2 border-red-500 bg-red-500 px-5 py-2 text-sm font-semibold uppercase tracking-[0.25em] text-white shadow-lg shadow-red-500/30 transition hover:bg-red-600"
+            onClick={() => handleReject(currentOrder.orderId)}
+          >
+            Reject
           </button>
           <button className={subtleButtonClass} onClick={handleDismiss}>
             Dismiss
